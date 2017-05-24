@@ -26,17 +26,15 @@ containers = client.containers.list()
 # http://containertutorials.com/docker-compose/flask-simple-app.html
 
 from flask import Flask
-from flask import request
 app = Flask(__name__)
 
 @app.route("/")
 def hello():
     return "Hello World!"
 
-@app.route('/id')
-def id():
-    # here we want to get the id of a container (i.e. ?name=some-value)
-    name = request.args.get('name')
+# http://flask.pocoo.org/docs/0.12/quickstart/#variable-rules
+@app.route('/container/id/<name>')
+def id(name):
     return get_container(name).id
 
 if __name__ == '__main__':
