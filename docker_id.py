@@ -43,5 +43,14 @@ def id(name):
         app.logger.debug('No container with a name starting with \'%s\'', name)
         return "None"
 
+@app.route('/container/name/<name>')
+def name(name):
+    container = get_container(name)
+    if container is not None:
+        return container.name
+    else:
+        app.logger.debug('No container with a name starting with \'%s\'', name)
+        return "None"
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0')
