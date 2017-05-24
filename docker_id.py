@@ -48,8 +48,8 @@ def name(name):
         app.logger.debug('No container with a name starting with \'%s\'', name)
         return "None"
 
-@app.route('/service/id/<node>/<name>')
-def name(node, name):
+@app.route('/service/id/<string:node>/<string:name>')
+def service(node, name):
     service = get_service(name)
     if service is not None:
         task = service.tasks({'node':node})[0]
