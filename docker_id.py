@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+## Docker
+
 import docker
 
 client = docker.from_env()
@@ -19,9 +21,6 @@ def get_container(name):
 	return None
 
 containers = client.containers.list()
-print(containers)
-
-print(get_container('serv'))
 
 # RESTful server
 # http://containertutorials.com/docker-compose/flask-simple-app.html
@@ -41,4 +40,4 @@ def id():
     return get_container(name).id
 
 if __name__ == '__main__':
-    app.run(debug=True,host='0.0.0.0')
+    app.run(host='0.0.0.0')
