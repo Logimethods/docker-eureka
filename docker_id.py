@@ -25,6 +25,7 @@ containers = client.containers.list()
 # RESTful server
 # http://containertutorials.com/docker-compose/flask-simple-app.html
 
+import logging
 from flask import Flask
 app = Flask(__name__)
 
@@ -35,7 +36,12 @@ def hello():
 # http://flask.pocoo.org/docs/0.12/quickstart/#variable-rules
 @app.route('/container/id/<name>')
 def id(name):
-    return get_container(name).id
+    container = get_container(name)
+    if container is not None:
+        return container.id
+    else:
+        app.logger.debug('No container with a name starting with \'%s\'', name)
+        return "None"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0')
