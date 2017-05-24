@@ -7,4 +7,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY *.py .
 
+EXPOSE 5000
+
 CMD [ "python", "./docker_id.py" ]
