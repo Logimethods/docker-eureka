@@ -7,11 +7,7 @@ import docker
 client = docker.from_env()
 
 def get_service(name):
-	services = client.services.list()
-	for service in services:
-		if service.name == name:
-			return service
-	return None
+	return client.services.get(name)
 
 def get_container(name):
 	containers = client.containers.list()
@@ -50,6 +46,16 @@ def name(name):
         return container.name
     else:
         app.logger.debug('No container with a name starting with \'%s\'', name)
+        return "None"
+
+@app.route('/service/id/<node>/<name>')
+def name(node, name):
+    service = get_service(name)
+    if service is not None:
+        task = service.tasks({'node':node})[0]
+        return task['Status']['ContainerStatus']['ContainerID']
+    else:
+        app.logger.debug('No service with a name equals to \'%s\'', name)
         return "None"
 
 if __name__ == '__main__':
