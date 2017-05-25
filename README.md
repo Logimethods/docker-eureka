@@ -12,4 +12,6 @@ curl http://localhost:5000/container/id/<name>
 curl http://localhost:5000/service/id/<string:node>/<string:name>
 ```
 
+<name> can be based on a Python Regex: https://docs.python.org/3.6/library/re.html
+
 https://github.com/docker/swarm/issues/1106

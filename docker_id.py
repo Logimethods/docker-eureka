@@ -3,18 +3,25 @@
 ## Docker
 
 import docker
+import re
 
 client = docker.from_env()
 
 def get_service(name):
-	return client.services.get(name)
+    pattern = re.compile(name)
+    services = client.services.list()
+    for service in services:
+        if pattern.match(service.name):
+            return service
+    return None
 
 def get_container(name):
-	containers = client.containers.list()
-	for container in containers:
-		if container.name.startswith(name):
-			return container
-	return None
+    pattern = re.compile(name)
+    containers = client.containers.list()
+    for container in containers:
+        if pattern.match(container.name):
+            return container
+    return None
 
 # RESTful server
 # http://containertutorials.com/docker-compose/flask-simple-app.html
@@ -34,7 +41,7 @@ def id(name):
     if container is not None:
         return container.id
     else:
-        app.logger.debug('No container with a name starting with \'%s\'', name)
+        app.logger.debug('No container with a name as \'%s\'', name)
         return "None"
 
 @app.route('/container/name/<name>')
@@ -43,7 +50,7 @@ def name(name):
     if container is not None:
         return container.name
     else:
-        app.logger.debug('No container with a name starting with \'%s\'', name)
+        app.logger.debug('No container with a name as \'%s\'', name)
         return "None"
 
 @app.route('/service/id/<string:node>/<string:name>')
@@ -53,7 +60,7 @@ def service_id(node, name):
         task = service.tasks({'node':node})[0]
         return task['Status']['ContainerStatus']['ContainerID']
     else:
-        app.logger.debug('No service with a name equals to \'%s\'', name)
+        app.logger.debug('No service with a name as \'%s\'', name)
         return "None"
 
 @app.route('/service/name/<string:node>/<string:name>')
@@ -62,10 +69,10 @@ def service_name(node, name):
     if service is not None:
         task = service.tasks({'node':node})[0]
         slot = task['Slot']
-        id = task['ID'] 
-        return name + '.' + str(slot) + '.' + str(id)
+        id = task['ID']
+        return service.name + '.' + str(slot) + '.' + str(id)
     else:
-        app.logger.debug('No service with a name equals to \'%s\'', name)
+        app.logger.debug('No service with a name as \'%s\'', name)
         return "None"
 
 if __name__ == '__main__':
