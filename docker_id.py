@@ -16,8 +16,6 @@ def get_container(name):
 			return container
 	return None
 
-containers = client.containers.list()
-
 # RESTful server
 # http://containertutorials.com/docker-compose/flask-simple-app.html
 
@@ -49,11 +47,23 @@ def name(name):
         return "None"
 
 @app.route('/service/id/<string:node>/<string:name>')
-def service(node, name):
+def service_id(node, name):
     service = get_service(name)
     if service is not None:
         task = service.tasks({'node':node})[0]
         return task['Status']['ContainerStatus']['ContainerID']
+    else:
+        app.logger.debug('No service with a name equals to \'%s\'', name)
+        return "None"
+
+@app.route('/service/name/<string:node>/<string:name>')
+def service_name(node, name):
+    service = get_service(name)
+    if service is not None:
+        task = service.tasks({'node':node})[0]
+        slot = task['Slot']
+        id = task['ID'] 
+        return name + '.' + str(slot) + '.' + str(id)
     else:
         app.logger.debug('No service with a name equals to \'%s\'', name)
         return "None"
