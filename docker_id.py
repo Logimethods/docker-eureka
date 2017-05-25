@@ -7,13 +7,28 @@ import re
 
 client = docker.from_env()
 
-def get_service(name):
+
+def get_services(name):
     pattern = re.compile(name)
     services = client.services.list()
+    selected = []
     for service in services:
         if pattern.match(service.name):
-            return service
-    return None
+            selected.append(service)
+    return selected
+
+def addServiceName(d, name):
+    d.update({'ServiceName':name})
+    return d
+
+def get_tasks(node, name):
+    pattern = re.compile(name)
+    services = client.services.list()
+    selected = []
+    for service in services:
+        if pattern.match(service.name):
+            selected.extend([addServiceName(d, service.name) for d in service.tasks({'node':node, 'desired-state':'running'})])
+    return selected
 
 def get_container(name):
     pattern = re.compile(name)
@@ -55,24 +70,25 @@ def name(name):
 
 @app.route('/service/id/<string:node>/<string:name>')
 def service_id(node, name):
-    service = get_service(name)
-    if service is not None:
-        task = service.tasks({'node':node})[0]
+    tasks = get_tasks(node, name)
+    if len(tasks) >= 1 :
+        task = tasks[0]
         return task['Status']['ContainerStatus']['ContainerID']
     else:
-        app.logger.debug('No service with a name as \'%s\'', name)
+        app.logger.debug('No service with a name as \'%s\' on %s node', name, node)
         return "None"
 
 @app.route('/service/name/<string:node>/<string:name>')
 def service_name(node, name):
-    service = get_service(name)
-    if service is not None:
-        task = service.tasks({'node':node})[0]
-        slot = task['Slot']
+    tasks = get_tasks(node, name)
+    if len(tasks) >= 1 :
+        name = task['ServiceName']
+        task = tasks[0]
+        slot = task.get('Slot', task['NodeID'])
         id = task['ID']
-        return service.name + '.' + str(slot) + '.' + str(id)
+        return name + '.' + str(slot) + '.' + str(id)
     else:
-        app.logger.debug('No service with a name as \'%s\'', name)
+        app.logger.debug('No service with a name as \'%s\' on %s node', name, node)
         return "None"
 
 if __name__ == '__main__':
