@@ -82,8 +82,8 @@ def service_id(node, name):
 def service_name(node, name):
     tasks = get_tasks(node, name)
     if len(tasks) >= 1 :
-        name = task['ServiceName']
         task = tasks[0]
+        name = task['ServiceName']
         slot = task.get('Slot', task['NodeID'])
         id = task['ID']
         return name + '.' + str(slot) + '.' + str(id)
