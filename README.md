@@ -16,6 +16,7 @@ docker run --rm --name entrypoint entrypoint-local env
 curl http://localhost:5000/container/id/<name>
 curl http://localhost:5000/service/id/<string:node>/<string:name>
 curl http://localhost:5000/services/node/<string:node>
+curl http://localhost:5000/services
 ```
 
 <name> can be based on a Python Regex: https://docs.python.org/3.6/library/re.html
