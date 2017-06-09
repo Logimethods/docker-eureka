@@ -8,6 +8,11 @@ docker service create --name eureka --mount type=bind,source=/var/run/docker.soc
 ```
 
 ```
+entrypoint> docker build -t entrypoint-local .
+docker run --rm --name entrypoint entrypoint-local env
+```
+
+```
 curl http://localhost:5000/container/id/<name>
 curl http://localhost:5000/service/id/<string:node>/<string:name>
 curl http://localhost:5000/services/node/<string:node>

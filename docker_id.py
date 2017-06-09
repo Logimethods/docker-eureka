@@ -58,6 +58,13 @@ def get_containers(node):
         containers.append({service.name:[extract_container(service.name, d) for d in service.tasks({'node':node, 'desired-state':'running'})]})
     return containers
 
+def get_all_containers():
+    services = client.services.list()
+    containers = []
+    for service in services:
+        containers.append({service.name:[extract_container(service.name, d) for d in service.tasks({'desired-state':'running'})]})
+    return containers
+
 # RESTful server
 # http://containertutorials.com/docker-compose/flask-simple-app.html
 
@@ -114,6 +121,10 @@ def service_name(node, name):
 @app.route('/services/node/<string:node>')
 def services_node(node):
     return json.dumps(get_containers(node))
+
+@app.route('/services')
+def services():
+    return json.dumps(get_all_containers())
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0')
