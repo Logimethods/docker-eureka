@@ -1,10 +1,10 @@
-# docker-service-registry
+# docker-eureka
 
 ```
-docker build -t service-registry-local .
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -p 5000:5000 -e FLASK_DEBUG=1 logimethods/service-registry
+docker build -t eureka-local .
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -p 5000:5000 -e FLASK_DEBUG=1 logimethods/eureka
 
-docker service create --name registry --mount type=bind,source=/var/run/docker.sock,destination=/var/run/docker.sock -p 5000:5000 -e FLASK_DEBUG=0 logimethods/service-registry
+docker service create --name registry --mount type=bind,source=/var/run/docker.sock,destination=/var/run/docker.sock -p 5000:5000 -e FLASK_DEBUG=0 logimethods/eureka
 ```
 
 ```
