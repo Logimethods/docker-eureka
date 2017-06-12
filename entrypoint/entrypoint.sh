@@ -17,13 +17,18 @@ fi
 
 # https://stedolan.github.io/jq/
 while IFS="=" read name value; do
-  export "$name=$value"
-done < <( echo "$SERVICES" | jq '.[] | tostring' | sed -e 's/\"{\\\"//g' -e 's/\\\"\:\[\\\"/_ip=/g' -e 's/\\\",\\\"/\\\ /g' -e 's/\\\"]}\"//g')
+  export "${name}=${value/%\ */}"
+  export "${name}0=$value"
+  i=1
+  for container in $value; do
+    export "${name}$((i++))=${container}"
+  done
+done < <( echo "$SERVICES" | jq '.[] | tostring' | sed -e 's/\"{\\\"//g' -e 's/\\\"\:\[\\\"/_url=/g' -e 's/\\\",\\\"/\\\ /g' -e 's/\\\"]}\"//g')
 #done < <(curl -s http://localhost:5000/services/node/jn02f6tvsb5zdzzey3uxm6ae2 | jq '.[] | tostring' | sed -e 's/\"{\\\"/ip_/g' -e 's/\\\"\:\[\\\"/=/g' -e 's/\\\",\\\"/\\\ /g' -e 's/\\\"]}\"//g' )
 
 if [ "$DEBUG" = "true" ]; then
   echo $EUREKA_URL:$EUREKA_PORT
-  env | grep _ip
+  env | grep _url | sort
 fi
 
 exec "$@"

@@ -12,6 +12,11 @@ entrypoint> docker build -t entrypoint-local .
 docker run --rm --name entrypoint entrypoint-local env
 ```
 
+xxx_url -> the first URL
+xxx_url0 -> all the URLs
+xxx_url1 -> URL 1
+xxx_url{n} -> URL {n}
+
 ```
 curl http://localhost:5000/container/id/<name>
 curl http://localhost:5000/service/id/<string:node>/<string:name>
