@@ -7,7 +7,6 @@ set -e
 
 : ${EUREKA_URL:=eureka}
 : ${EUREKA_PORT:=5000}
-env
 
 if [ -z "$NODE_ID" ]
 then

@@ -55,14 +55,18 @@ def get_containers(node):
     services = client.services.list()
     containers = []
     for service in services:
-        containers.append({service.name:[extract_container(service.name, d) for d in service.tasks({'node':node, 'desired-state':'running'})]})
+        tasks = service.tasks({'node':node, 'desired-state':'running'})
+        if tasks: # List not empty
+            containers.append({service.name:[extract_container(service.name, d) for d in tasks]})
     return containers
 
 def get_all_containers():
     services = client.services.list()
     containers = []
     for service in services:
-        containers.append({service.name:[extract_container(service.name, d) for d in service.tasks({'desired-state':'running'})]})
+        tasks = service.tasks({'desired-state':'running'})
+        if tasks: # List not empty
+            containers.append({service.name:[extract_container(service.name, d) for d in tasks]})
     return containers
 
 # RESTful server
