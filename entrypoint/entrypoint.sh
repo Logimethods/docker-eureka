@@ -1,9 +1,9 @@
 #!/bin/bash
 set -e
 
+### PROVIDE LOCAL URLS ###
 # An alternative to https://github.com/docker/swarm/issues/1106
 # export DOCKER_TARGET_ID=$(docker ps | grep $DOCKER_TARGET_NAME | awk '{ print $1 }')
-#
 
 : ${EUREKA_URL:=eureka}
 : ${EUREKA_PORT:=5000}
@@ -37,5 +37,17 @@ if [ "$DEBUG" = "true" ]; then
   echo $EUREKA_URL:$EUREKA_PORT
   env | grep _url | sort
 fi
+
+### CHECK DEPENDENCIES ###
+# https://github.com/moby/moby/issues/31333#issuecomment-303250242
+if [ "DEPENDS_ON" ]; then
+  check_dependencies=$(call_eureka http://${EUREKA_URL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})
+  if [ "$check_dependencies" != "OK" ]; then
+    echo "Failed Check Dependencies ${DEPENDS_ON}"
+    exit 1
+  fi
+fi
+
+### EXEC CMD ###
 
 exec "$@"

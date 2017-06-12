@@ -32,7 +32,7 @@ curl http://localhost:5000/services
 
 ```
 ping > docker build -t ping-local .
-docker run --rm -it --network ${network} ping-local
+docker run --rm -it --network ${network} --name ping -e DEPENDS_ON=eureka:ping ping-local
 ```
 ```
 docker run --rm -it --network ${network} logimethods/eureka:ping

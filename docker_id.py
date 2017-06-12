@@ -69,6 +69,20 @@ def get_all_containers():
             containers.append({service.name:[extract_container(service.name, d) for d in tasks]})
     return containers
 
+def check_dependencies(str):
+    containers = []
+    for container in client.containers.list():
+        containers.append(container.name)
+    for service in client.services.list():
+        tasks = service.tasks({'desired-state':'running'})
+        if tasks: # List not empty
+            containers.append(service.name)
+    dependencies = str.split(':')
+    for dependency in dependencies:
+        if dependency not in containers:
+            return ''
+    return 'OK'
+
 # RESTful server
 # http://containertutorials.com/docker-compose/flask-simple-app.html
 
@@ -129,6 +143,10 @@ def services_node(node):
 @app.route('/services')
 def services():
     return json.dumps(get_all_containers())
+
+@app.route('/dependencies/<string:str>')
+def dependencies(str):
+    return check_dependencies(str)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0')
