@@ -40,14 +40,36 @@ fi
 
 ### CHECK DEPENDENCIES ###
 # https://github.com/moby/moby/issues/31333#issuecomment-303250242
-if [ "DEPENDS_ON" ]; then
-  check_dependencies=$(call_eureka http://${EUREKA_URL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})
-  if [ "$check_dependencies" != "OK" ]; then
+
+: ${CHECK_DEPENDENCIES_DELAY:=2}
+
+check_dependencies(){
+  dependencies_checked=$(call_eureka http://${EUREKA_URL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})
+  if [ "$dependencies_checked" != "OK" ]; then
     echo "Failed Check Dependencies ${DEPENDS_ON}"
-    exit 1
+    if [ -z "$1" ]                           # Is parameter #1 zero length?
+    then
+      exit 1  # Or no parameter passed.
+    else
+      kill $1
+    fi
   fi
+}
+
+infinite_check(){
+  if [ "${DEPENDS_ON}" ]; then
+    while true
+    do
+      sleep ${CHECK_DEPENDENCIES_DELAY}
+      check_dependencies $1 &
+    done
+  fi
+}
+
+if [ "${DEPENDS_ON}" ]; then
+  check_dependencies
 fi
 
 ### EXEC CMD ###
 
-exec "$@"
+( cmdpid=$BASHPID; (infinite_check $cmdpid) & exec "$@" )
