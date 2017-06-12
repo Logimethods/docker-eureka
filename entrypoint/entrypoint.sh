@@ -8,11 +8,19 @@ set -e
 : ${EUREKA_URL:=eureka}
 : ${EUREKA_PORT:=5000}
 
+call_eureka() {
+    if hash curl 2>/dev/null; then
+        curl -s "$@"
+    else
+        wget -q -O - "$@"
+    fi
+}
+
 if [ -z "$NODE_ID" ]
 then
-    SERVICES=$(curl -s http://${EUREKA_URL}:${EUREKA_PORT}/services)
+    SERVICES=$(call_eureka http://${EUREKA_URL}:${EUREKA_PORT}/services)
 else
-    SERVICES=$(curl -s http://${EUREKA_URL}:${EUREKA_PORT}/services/node/${NODE_ID})
+    SERVICES=$(call_eureka http://${EUREKA_URL}:${EUREKA_PORT}/services/node/${NODE_ID})
 fi
 
 # https://stedolan.github.io/jq/
@@ -24,7 +32,6 @@ while IFS="=" read name value; do
     export "${name}$((i++))=${container}"
   done
 done < <( echo "$SERVICES" | jq '.[] | tostring' | sed -e 's/\"{\\\"//g' -e 's/\\\"\:\[\\\"/_url=/g' -e 's/\\\",\\\"/\\\ /g' -e 's/\\\"]}\"//g')
-#done < <(curl -s http://localhost:5000/services/node/jn02f6tvsb5zdzzey3uxm6ae2 | jq '.[] | tostring' | sed -e 's/\"{\\\"/ip_/g' -e 's/\\\"\:\[\\\"/=/g' -e 's/\\\",\\\"/\\\ /g' -e 's/\\\"]}\"//g' )
 
 if [ "$DEBUG" = "true" ]; then
   echo $EUREKA_URL:$EUREKA_PORT
