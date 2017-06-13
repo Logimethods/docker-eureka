@@ -49,81 +49,87 @@ declare -i interval=CHECK_DEPENDENCIES_INTERVAL
 # Delay between posting the SIGTERM signal and destroying the process by SIGKILL.
 declare -i delay=CHECK_KILL_DELAY
 
-#### SETUP timeout
-( cmdpid=$BASHPID;
+initial_check() {
+  declare cmdpid=$1
 
-declare -i started=0
+  #### SETUP timeout
 
-if [ "${CHECK_TIMEOUT}" ]; then
-  # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
-  # Timeout.
-  declare -i timeout=CHECK_TIMEOUT
-  # kill -0 pid   Exit code indicates if a signal may be sent to $pid process.
-  (
-      ((t = timeout))
+  if [ "${CHECK_TIMEOUT}" ]; then
+    # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
+    # Timeout.
+    declare -i timeout=CHECK_TIMEOUT
+    # kill -0 pid   Exit code indicates if a signal may be sent to $pid process.
+    (
+        ((t = timeout))
 
-      while ((started == 0 && t > 0)); do
-          echo "$t Second(s) Remaining Before Timeout"
-          sleep $interval
-          kill -0 $$ || exit 0
-          ((t -= interval))
-      done
+        while ((t > 0)); do
+            echo "$t Second(s) Remaining Before Timeout"
+            sleep $interval
+            kill -0 $$ || exit 0
+            ((t -= interval))
+        done
 
-      if ((started == 0)); then
-        echo "Timeout. Will EXIT"
-        # Be nice, post SIGTERM first.
-        # The 'exit 0' below will be executed if any preceeding command fails.
-        kill -s SIGTERM $cmdpid && kill -0 $cmdpid || exit 0
-        sleep $delay
-        kill -s SIGKILL $cmdpid
-      fi
-  ) 2> /dev/null &
-fi
+        if ((started == 0)); then
+          echo "Timeout. Will EXIT"
+          # Be nice, post SIGTERM first.
+          # The 'exit 0' below will be executed if any preceeding command fails.
+          kill -s SIGTERM $cmdpid && kill -0 $cmdpid || exit 0
+          sleep $delay
+          kill -s SIGKILL $cmdpid
+        fi
+    ) 2> /dev/null &
+  fi
 
-#### Initial Checks ####
+  #### Initial Checks ####
 
-# https://docs.docker.com/compose/startup-order/
-if [ "${DEPENDS_ON}" ]; then
-  >&2 echo "Checking DEPENDENCIES ${DEPENDS_ON}"
-  until [ "$(call_eureka http://${EUREKA_URL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})" == "OK" ]; do
-    >&2 echo "Still WAITING for Dependencies ${DEPENDS_ON}"
-    sleep $interval
-  done
-fi
-
-# https://github.com/Eficode/wait-for
-if [ "${WAIT_FOR}" ]; then
-  >&2 echo "Checking URLS $WAIT_FOR"
-  URLS=$(echo $WAIT_FOR | tr "," "\n")
-  for URL in $URLS
-  do
-    HOST=$(printf "%s\n" "$URL"| cut -d : -f 1)
-    PORT=$(printf "%s\n" "$URL"| cut -d : -f 2)
-    until nc -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ; [ $result -eq 0 ] ; do
-      >&2 echo "Still WAITING for URL $HOST:$PORT"
+  # https://docs.docker.com/compose/startup-order/
+  if [ "${DEPENDS_ON}" ]; then
+    >&2 echo "Checking DEPENDENCIES ${DEPENDS_ON}"
+    until [ "$(call_eureka http://${EUREKA_URL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})" == "OK" ]; do
+      >&2 echo "Still WAITING for Dependencies ${DEPENDS_ON}"
       sleep $interval
     done
-  done
-fi
+  fi
 
-started=1
+  # https://github.com/Eficode/wait-for
+  if [ "${WAIT_FOR}" ]; then
+    >&2 echo "Checking URLS $WAIT_FOR"
+    URLS=$(echo $WAIT_FOR | tr "," "\n")
+    for URL in $URLS
+    do
+      HOST=$(printf "%s\n" "$URL"| cut -d : -f 1)
+      PORT=$(printf "%s\n" "$URL"| cut -d : -f 2)
+      until nc -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ; [ $result -eq 0 ] ; do
+        >&2 echo "Still WAITING for URL $HOST:$PORT"
+        sleep $interval
+      done
+    done
+  fi
+
+  if [ "${CHECK_TIMEOUT}" ]; then
+    # $! expands to the PID of the last process executed in the background.
+    kill $!
+  fi
+}
 
 #### Continuous Checks ####
 
 check_dependencies(){
+  declare cmdpid=$1
+
   dependencies_checked=$(call_eureka http://${EUREKA_URL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})
   if [ "$dependencies_checked" != "OK" ]; then
     >&2 echo "Failed Check Dependencies ${DEPENDS_ON}"
-    if [ -z "$1" ]                           # Is parameter #1 zero length?
+    if [ -z "$cmdpid" ]                           # Is parameter #1 zero length?
     then
       exit 1  # Or no parameter passed.
     else
       # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
       # Be nice, post SIGTERM first.
       # The 'exit 0' below will be executed if any preceeding command fails.
-      kill -s SIGTERM $1 && kill -0 $1 || exit 0
+      kill -s SIGTERM $cmdpid && kill -0 $cmdpid || exit 0
       sleep $delay
-      kill -s SIGKILL $1
+      kill -s SIGKILL $cmdpid
     fi
   fi
 }
@@ -139,4 +145,6 @@ infinite_check(){
 }
 
 ### EXEC CMD ###
-(infinite_check $cmdpid) & exec "$@" )
+( cmdpid=$BASHPID;
+  initial_check $cmdpid ;
+  (infinite_check $cmdpid) & exec "$@" )
