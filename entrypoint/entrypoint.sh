@@ -42,6 +42,7 @@ fi
 # https://github.com/moby/moby/issues/31333#issuecomment-303250242
 
 : ${CHECK_DEPENDENCIES_DELAY:=2}
+: ${CHECK_KILL_DELAY:=5}
 
 #### Initial Checks ####
 
@@ -80,7 +81,12 @@ check_dependencies(){
     then
       exit 1  # Or no parameter passed.
     else
-      kill $1
+      # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
+      # Be nice, post SIGTERM first.
+      # The 'exit 0' below will be executed if any preceeding command fails.
+      kill -s SIGTERM $1 && kill -0 $1 || exit 0
+      sleep $CHECK_KILL_DELAY
+      kill -s SIGKILL $1
     fi
   fi
 }
