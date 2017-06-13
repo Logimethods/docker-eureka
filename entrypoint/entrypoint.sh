@@ -43,10 +43,22 @@ fi
 
 : ${CHECK_DEPENDENCIES_DELAY:=2}
 
+#### Initial Checks ####
+
+# https://docs.docker.com/compose/startup-order/
+if [ "${DEPENDS_ON}" ]; then
+  until [ "$(call_eureka http://${EUREKA_URL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})" == "OK" ]; do
+    >&2 echo "Still WAITING for Dependencies ${DEPENDS_ON}"
+    sleep ${CHECK_DEPENDENCIES_DELAY}
+  done
+fi
+
+#### Continuous Checks ####
+
 check_dependencies(){
   dependencies_checked=$(call_eureka http://${EUREKA_URL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})
   if [ "$dependencies_checked" != "OK" ]; then
-    echo "Failed Check Dependencies ${DEPENDS_ON}"
+    >&2 echo "Failed Check Dependencies ${DEPENDS_ON}"
     if [ -z "$1" ]                           # Is parameter #1 zero length?
     then
       exit 1  # Or no parameter passed.
@@ -65,10 +77,6 @@ infinite_check(){
     done
   fi
 }
-
-if [ "${DEPENDS_ON}" ]; then
-  check_dependencies
-fi
 
 ### EXEC CMD ###
 
