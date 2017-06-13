@@ -117,13 +117,10 @@ initial_check() {
 check_dependencies(){
   declare cmdpid=$1
 
-  dependencies_checked=$(call_eureka http://${EUREKA_URL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})
-  if [ "$dependencies_checked" != "OK" ]; then
-    >&2 echo "Failed Check Dependencies ${DEPENDS_ON}"
-    if [ -z "$cmdpid" ]                           # Is parameter #1 zero length?
-    then
-      exit 1  # Or no parameter passed.
-    else
+  if [ "${DEPENDS_ON}" ]; then
+    dependencies_checked=$(call_eureka http://${EUREKA_URL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})
+    if [ "$dependencies_checked" != "OK" ]; then
+      >&2 echo "Failed Check Dependencies ${DEPENDS_ON}"
       # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
       # Be nice, post SIGTERM first.
       # The 'exit 0' below will be executed if any preceeding command fails.
@@ -132,10 +129,30 @@ check_dependencies(){
       kill -s SIGKILL $cmdpid
     fi
   fi
+
+  # https://github.com/Eficode/wait-for
+  if [ "${WAIT_FOR}" ]; then
+    URLS=$(echo $WAIT_FOR | tr "," "\n")
+    for URL in $URLS
+    do
+      HOST=$(printf "%s\n" "$URL"| cut -d : -f 1)
+      PORT=$(printf "%s\n" "$URL"| cut -d : -f 2)
+      nc -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ;
+      if [ $result -ne 0 ] ; then
+        >&2 echo "Failed Check URL ${URLS}"
+        # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
+        # Be nice, post SIGTERM first.
+        # The 'exit 0' below will be executed if any preceeding command fails.
+        kill -s SIGTERM $cmdpid && kill -0 $cmdpid || exit 0
+        sleep $delay
+        kill -s SIGKILL $cmdpid
+      fi
+    done
+  fi
 }
 
 infinite_check(){
-  if [ "${DEPENDS_ON}" ]; then
+  if [[ "${DEPENDS_ON}" || "${CHECK_TIMEOUT}" ]]; then
     while true
     do
       sleep $interval
