@@ -47,11 +47,28 @@ fi
 
 # https://docs.docker.com/compose/startup-order/
 if [ "${DEPENDS_ON}" ]; then
+  >&2 echo "Checking DEPENDENCIES ${DEPENDS_ON}"
   until [ "$(call_eureka http://${EUREKA_URL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})" == "OK" ]; do
     >&2 echo "Still WAITING for Dependencies ${DEPENDS_ON}"
     sleep ${CHECK_DEPENDENCIES_DELAY}
   done
 fi
+
+# https://github.com/Eficode/wait-for
+if [ "${WAIT_FOR}" ]; then
+  >&2 echo "Checking URLS $WAIT_FOR"
+  URLS=$(echo $WAIT_FOR | tr "," "\n")
+  for URL in $URLS
+  do
+    HOST=$(printf "%s\n" "$URL"| cut -d : -f 1)
+    PORT=$(printf "%s\n" "$URL"| cut -d : -f 2)
+    until nc -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ; [ $result -eq 0 ] ; do
+      >&2 echo "Still WAITING for URL $HOST:$PORT"
+      sleep ${CHECK_DEPENDENCIES_DELAY}
+    done
+  done
+fi
+
 
 #### Continuous Checks ####
 

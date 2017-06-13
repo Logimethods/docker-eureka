@@ -32,7 +32,7 @@ curl http://localhost:5000/services
 
 ```
 ping > docker build -t ping-local .
-docker run --rm -it --network ${network} --name ping -e DEPENDS_ON=eureka;ping0 ping-local
+docker run --rm -it --network ${network} --name ping -e DEPENDS_ON=eureka;ping0 -e WAIT_FOR=www.eficode.com:80,www.docker.com:80 ping-local
 
 docker run --rm -it --network smartmeter --name ping0 ping-local
 >ctr C

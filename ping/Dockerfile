@@ -1,6 +1,6 @@
 # https://docs.docker.com/engine/userguide/eng-image/multistage-build/#use-multi-stage-builds
-#FROM logimethods/eureka:entrypoint as entrypoint
-FROM entrypoint-local as entrypoint
+FROM logimethods/eureka:entrypoint as entrypoint
+#FROM entrypoint-local as entrypoint
 
 FROM alpine:3.6
 # https://stedolan.github.io/jq/
