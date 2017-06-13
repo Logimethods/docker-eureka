@@ -77,7 +77,7 @@ def check_dependencies(str):
         tasks = service.tasks({'desired-state':'running'})
         if tasks: # List not empty
             containers.append(service.name)
-    dependencies = str.split(':')
+    dependencies = str.split(',')
     for dependency in dependencies:
         if dependency not in containers:
             return ''

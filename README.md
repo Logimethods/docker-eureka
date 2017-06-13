@@ -13,7 +13,7 @@ entrypoint> docker build -t entrypoint-local .
 docker run --rm --network ${network} --name entrypoint entrypoint-local env
 ```
 ```
-docker run --rm --network ${network} --name entrypoint logimethods/eureka:entrypoint env
+docker run --rm --network ${network} --name entrypoint logimethods/eureka;entrypoint env
 ```
 
 xxx_url -> the first URL
@@ -32,7 +32,7 @@ curl http://localhost:5000/services
 
 ```
 ping > docker build -t ping-local .
-docker run --rm -it --network ${network} --name ping -e DEPENDS_ON=eureka:ping0 ping-local
+docker run --rm -it --network ${network} --name ping -e DEPENDS_ON=eureka;ping0 ping-local
 
 docker run --rm -it --network smartmeter --name ping0 ping-local
 >ctr C
