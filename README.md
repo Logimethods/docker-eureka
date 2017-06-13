@@ -37,7 +37,7 @@ docker run --rm -it --network ${network} --name ping -e DEPENDS_ON=eureka;ping0 
 docker run --rm -it --network smartmeter --name ping0 ping-local
 >ctr C
 ```
-`-e CHECK_DEPENDENCIES_DELAY=5`
+`-e CHECK_DEPENDENCIES_INTERVAL=5`
 ```
 docker run --rm -it --network ${network} logimethods/eureka:ping
 ```
