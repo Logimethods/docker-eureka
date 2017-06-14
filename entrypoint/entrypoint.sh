@@ -29,31 +29,40 @@ add_dns_entry() {
   # https://stackoverflow.com/questions/24991136/docker-build-could-not-resolve-archive-ubuntu-com-apt-get-fails-to-install-a
   ip=$(nslookup ${target} 2>/dev/null | tail -n1 | awk '{ print $3 }')
   # http://jasani.org/2014/11/19/docker-now-supports-adding-host-mappings/
-  echo "$ip $host" >> /etc/hosts
+  sed -i "/${host}\$/d" ~/hosts.new
+  echo "$ip $host" >> ~/hosts.new
 }
 
-### TODO : REFRESH regularly the HOSTS Table ###
-# https://stedolan.github.io/jq/
-while IFS="=" read name value; do
-  container="${value/%\ */}"
-  export "${name}=${container}"
-  add_dns_entry ${name} ${container}
+setup_local_containers() {
+  # http://blog.jonathanargentiero.com/docker-sed-cannot-rename-etcsedl8ysxl-device-or-resource-busy/
+  cp /etc/hosts ~/hosts.new
 
-  export "${name}0=$value"
-  i=1
-  for container in $value; do
-    ## Stored as an Environment Variable
-    entry=${name}$((i++))
-    export "${entry}=${container}"
-    ## Added as a DNS entry
-    add_dns_entry ${entry} ${container}
-  done
-done < <( echo "$SERVICES" | jq '.[] | tostring' | sed -e 's/\"{\\\"//g' -e 's/\\\"\:\[\\\"/_local=/g' -e 's/\\\",\\\"/\\\ /g' -e 's/\\\"]}\"//g')
+  # https://stedolan.github.io/jq/
+  while IFS="=" read name value; do
+    container="${value/%\ */}"
+    export "${name}=${container}"
+    add_dns_entry ${name} ${container}
 
-if [ "$DEBUG" = "true" ]; then
-  echo $EUREKA_URL:$EUREKA_PORT
-  env | grep _local | sort
-fi
+    export "${name}0=$value"
+    i=1
+    for container in $value; do
+      ## Stored as an Environment Variable
+      entry=${name}$((i++))
+      export "${entry}=${container}"
+      ## Added as a DNS entry
+      add_dns_entry ${entry} ${container}
+    done
+  done < <( echo "$SERVICES" | jq '.[] | tostring' | sed -e 's/\"{\\\"//g' -e 's/\\\"\:\[\\\"/_local=/g' -e 's/\\\",\\\"/\\\ /g' -e 's/\\\"]}\"//g')
+
+  # cp -f ~/hosts.new /etc/hosts # cp: can't create '/etc/hosts': File exists
+  echo "$(cat ~/hosts.new)" > /etc/hosts
+
+  if [ "$DEBUG" = "true" ]; then
+    echo $EUREKA_URL:$EUREKA_PORT
+    env | grep _local | sort
+    cat /etc/hosts
+  fi
+}
 
 ### CHECK DEPENDENCIES ###
 # https://github.com/moby/moby/issues/31333#issuecomment-303250242
@@ -119,6 +128,7 @@ initial_check() {
       until nc -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ; [ $result -eq 0 ] ; do
         >&2 echo "Still WAITING for URL $HOST:$PORT"
         sleep $interval
+        setup_local_containers &
       done
     done
   fi
@@ -168,17 +178,19 @@ check_dependencies(){
   fi
 }
 
-infinite_check(){
-  if [[ "${DEPENDS_ON}" || "${CHECK_TIMEOUT}" ]]; then
-    while true
-    do
-      sleep $interval
+infinite_setup_check(){
+  while true
+  do
+    setup_local_containers &
+    sleep $interval
+    if [[ "${DEPENDS_ON}" || "${CHECK_TIMEOUT}" ]]; then
       check_dependencies $1 &
-    done
-  fi
+    fi
+  done
 }
 
 ### EXEC CMD ###
 ( cmdpid=$BASHPID;
+  setup_local_containers ;
   initial_check $cmdpid ;
-  (infinite_check $cmdpid) & exec "$@" )
+  (infinite_setup_check $cmdpid) & exec "$@" )
