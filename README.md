@@ -32,10 +32,9 @@ curl http://localhost:5000/services
 
 ```
 ping > docker build -t ping-local .
-docker run --rm -it --network ${network} --name ping -e DEPENDS_ON=eureka,ping0 -e WAIT_FOR=www.docker.com:80,eureka_local,ping0 ping-local
+docker run --rm -it --network ${network} --name ping -e DEPENDS_ON=eureka,ping0 -e WAIT_FOR=www.docker.com:80,eureka_local,ping0 -e CHECK_TIMEOUT=10 ping-local
 
-docker run --rm -it --network ${network} --name ping0 ping-local
->ctr C
+docker run --rm -it --network ${network} --name ping0 -v /proc:/writable-proc -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true ping-local
 
 docker run --rm -it --network ${network} --privileged ping-local sh
 #### https://tecadmin.net/block-ping-responses-in-linux/#

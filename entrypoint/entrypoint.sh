@@ -12,6 +12,16 @@ enable_ping() {
   echo "0" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
 }
 
+kill_cmdpid () {
+  declare cmdpid=$1
+  # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
+  # Be nice, post SIGTERM first.
+  # The 'exit 0' below will be executed if any preceeding command fails.
+  kill -s SIGTERM $cmdpid && kill -0 $cmdpid || exit 0
+  sleep $delay
+  kill -s SIGKILL $cmdpid
+}
+
 ### PROVIDE LOCAL URLS ###
 # An alternative to https://github.com/docker/swarm/issues/1106
 # export DOCKER_TARGET_ID=$(docker ps | grep $DOCKER_TARGET_NAME | awk '{ print $1 }')
@@ -167,12 +177,7 @@ check_dependencies(){
     dependencies_checked=$(call_eureka http://${EUREKA_URL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})
     if [ "$dependencies_checked" != "OK" ]; then
       >&2 echo "Failed Check Dependencies ${DEPENDS_ON}"
-      # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
-      # Be nice, post SIGTERM first.
-      # The 'exit 0' below will be executed if any preceeding command fails.
-      kill -s SIGTERM $cmdpid && kill -0 $cmdpid || exit 0
-      sleep $delay
-      kill -s SIGKILL $cmdpid
+      kill_cmdpid $cmdpid
     fi
   fi
 
@@ -187,21 +192,11 @@ check_dependencies(){
         nc -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ;
         if [ $result -ne 0 ] ; then
           >&2 echo "Failed Check URL ${URL}"
-          # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
-          # Be nice, post SIGTERM first.
-          # The 'exit 0' below will be executed if any preceeding command fails.
-          kill -s SIGTERM $cmdpid && kill -0 $cmdpid || exit 0
-          sleep $delay
-          kill -s SIGKILL $cmdpid
+          kill_cmdpid $cmdpid
         fi
       elif ! ping -c 1 "$URL" &>/dev/null ; then # ping url
         >&2 echo "Failed ${URL} Ping"
-        # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
-        # Be nice, post SIGTERM first.
-        # The 'exit 0' below will be executed if any preceeding command fails.
-        kill -s SIGTERM $cmdpid && kill -0 $cmdpid || exit 0
-        sleep $delay
-        kill -s SIGKILL $cmdpid
+        kill_cmdpid $cmdpid
       fi
     done
   fi
@@ -218,9 +213,37 @@ infinite_setup_check(){
   done
 }
 
+if [ ${FAILED_WHEN} ]; then
+  declare READINESS=true
+else
+  declare READINESS="null"
+fi
+
+: ${READY_WHEN:=""}
+if [ ${READY_WHEN} ]; then
+  declare ready=false
+  desable_ping
+else
+  declare ready=$READINESS
+fi
+
+
 monitor_output() {
-  if [[ $1 == *"ttl"* ]]; then
-    >&2 echo "$1 found ttl"
+  declare cmdpid=$2
+
+  if [ "$ready" = false ] && [[ $1 == *"${READY_WHEN}"* ]]; then
+    >&2 echo "READY!"
+    ready="$READINESS"
+    enable_ping
+  fi
+  if [ "$ready" = true ] && [[ $1 == *"${FAILED_WHEN}"* ]]; then
+    >&2 echo "FAILED!"
+    if [ ${KILL_WHEN_FAILED} ]; then
+      kill_cmdpid $cmdpid
+    else
+      ready=false
+      desable_ping
+    fi
   fi
 }
 
@@ -229,4 +252,4 @@ monitor_output() {
   setup_local_containers ;
   initial_check $cmdpid ;
   (infinite_setup_check $cmdpid) &
-  exec "$@" | while read line; do >&2 echo "$line"; monitor_output "$line" ; done )
+  exec "$@" | while read line; do >&2 echo "$line"; monitor_output "$line" $cmdpid ; done )
