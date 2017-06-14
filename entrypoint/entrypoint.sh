@@ -218,8 +218,15 @@ infinite_setup_check(){
   done
 }
 
+monitor_output() {
+  if [[ $1 == *"ttl"* ]]; then
+    >&2 echo "$1 found ttl"
+  fi
+}
+
 ### EXEC CMD ###
 ( cmdpid=$BASHPID;
   setup_local_containers ;
   initial_check $cmdpid ;
-  (infinite_setup_check $cmdpid) & exec "$@" )
+  (infinite_setup_check $cmdpid) &
+  exec "$@" | while read line; do >&2 echo "$line"; monitor_output "$line" ; done )
