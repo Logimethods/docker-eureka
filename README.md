@@ -32,10 +32,15 @@ curl http://localhost:5000/services
 
 ```
 ping > docker build -t ping-local .
-docker run --rm -it --network ${network} --name ping -e DEPENDS_ON=eureka;ping0 -e WAIT_FOR=www.docker.com:80,eureka_local ping-local
+docker run --rm -it --network ${network} --name ping -e DEPENDS_ON=eureka,ping0 -e WAIT_FOR=www.docker.com:80,eureka_local,ping0 ping-local
 
 docker run --rm -it --network ${network} --name ping0 ping-local
 >ctr C
+
+docker run --rm -it --network ${network} --privileged ping-local sh
+#### https://tecadmin.net/block-ping-responses-in-linux/#
+#### https://github.com/moby/moby/issues/4717
+/ # echo "1" >  /proc/sys/net/ipv4/icmp_echo_ignore_all
 ```
 `-e CHECK_DEPENDENCIES_INTERVAL=5`
 ```
