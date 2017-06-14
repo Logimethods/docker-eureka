@@ -1,6 +1,17 @@
 #!/bin/bash
 set -e
 
+# https://stackoverflow.com/questions/26177059/refresh-net-core-somaxcomm-or-any-sysctl-property-for-docker-containers/26197875#26197875
+# https://stackoverflow.com/questions/26050899/how-to-mount-host-volumes-into-docker-containers-in-dockerfile-during-build
+# docker run ... -v /proc:/writable-proc ...
+desable_ping() {
+  echo "1" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
+}
+
+enable_ping() {
+  echo "0" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
+}
+
 ### PROVIDE LOCAL URLS ###
 # An alternative to https://github.com/docker/swarm/issues/1106
 # export DOCKER_TARGET_ID=$(docker ps | grep $DOCKER_TARGET_NAME | awk '{ print $1 }')
