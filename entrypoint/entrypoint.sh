@@ -123,13 +123,21 @@ initial_check() {
     URLS=$(echo $WAIT_FOR | tr "," "\n")
     for URL in $URLS
     do
-      HOST=$(printf "%s\n" "$URL"| cut -d : -f 1)
-      PORT=$(printf "%s\n" "$URL"| cut -d : -f 2)
-      until nc -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ; [ $result -eq 0 ] ; do
-        >&2 echo "Still WAITING for URL $HOST:$PORT"
-        sleep $interval
-        setup_local_containers &
-      done
+      if [[ $URL == *":"* ]]; then # url + port
+        HOST=$(printf "%s\n" "$URL"| cut -d : -f 1)
+        PORT=$(printf "%s\n" "$URL"| cut -d : -f 2)
+        until nc -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ; [ $result -eq 0 ] ; do
+          >&2 echo "Still WAITING for URL $HOST:$PORT"
+          sleep $interval
+          setup_local_containers &
+        done
+      else # ping url
+        until ping -c1 "$URL" &>/dev/null; do
+          >&2 echo "Still WAITING for $URL PING"
+          sleep $interval
+          setup_local_containers &
+        done
+      fi
     done
   fi
 
@@ -162,11 +170,21 @@ check_dependencies(){
     URLS=$(echo $WAIT_FOR | tr "," "\n")
     for URL in $URLS
     do
-      HOST=$(printf "%s\n" "$URL"| cut -d : -f 1)
-      PORT=$(printf "%s\n" "$URL"| cut -d : -f 2)
-      nc -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ;
-      if [ $result -ne 0 ] ; then
-        >&2 echo "Failed Check URL ${URLS}"
+      if [[ $URL == *":"* ]]; then # url + port
+        HOST=$(printf "%s\n" "$URL"| cut -d : -f 1)
+        PORT=$(printf "%s\n" "$URL"| cut -d : -f 2)
+        nc -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ;
+        if [ $result -ne 0 ] ; then
+          >&2 echo "Failed Check URL ${URL}"
+          # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
+          # Be nice, post SIGTERM first.
+          # The 'exit 0' below will be executed if any preceeding command fails.
+          kill -s SIGTERM $cmdpid && kill -0 $cmdpid || exit 0
+          sleep $delay
+          kill -s SIGKILL $cmdpid
+        fi
+      elif ! ping -c 1 "$URL" &>/dev/null ; then # ping url
+        >&2 echo "Failed ${URL} Ping"
         # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
         # Be nice, post SIGTERM first.
         # The 'exit 0' below will be executed if any preceeding command fails.
