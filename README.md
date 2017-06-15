@@ -34,25 +34,11 @@ curl http://localhost:5000/services
 ping > docker build -t ping-local .
 docker run --rm -it --network ${network} --name ping -e DEPENDS_ON=eureka,ping0 -e WAIT_FOR=www.docker.com:80,eureka_local,ping0 -e CHECK_TIMEOUT=10 ping-local
 
-docker run --rm -it --network ${network} --name ping0 -v /proc:/writable-proc -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true ping-local
-
-docker run --rm -it --network ${network} --privileged ping-local sh
-#### https://tecadmin.net/block-ping-responses-in-linux/#
-#### https://github.com/moby/moby/issues/4717
-/ # echo "1" >  /proc/sys/net/ipv4/icmp_echo_ignore_all
+docker run --rm -it --network ${network} --name ping0 --sysctl net.ipv4.icmp_echo_ignore_all=1 -v /proc:/writable-proc -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true ping-local
 ```
 
-```
-#### https://stackoverflow.com/questions/26177059/refresh-net-core-somaxcomm-or-any-sysctl-property-for-docker-containers/26197875#26197875
-#### https://stackoverflow.com/questions/26050899/how-to-mount-host-volumes-into-docker-containers-in-dockerfile-during-build
-docker run --rm -it --network ${network} -v /proc:/writable-proc ping-local sh
-/ # echo "1" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
-/ # sysctl net.ipv4.icmp_echo_ignore_all
-net.ipv4.icmp_echo_ignore_all = 1
-/ # echo "0" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
-/ # sysctl net.ipv4.icmp_echo_ignore_all
-net.ipv4.icmp_echo_ignore_all = 0
-```
+* https://stackoverflow.com/questions/26177059/refresh-net-core-somaxcomm-or-any-sysctl-property-for-docker-containers/26197875#26197875
+* https://stackoverflow.com/questions/26050899/how-to-mount-host-volumes-into-docker-containers-in-dockerfile-during-build
 
 `-e CHECK_DEPENDENCIES_INTERVAL=5`
 ```

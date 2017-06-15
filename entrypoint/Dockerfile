@@ -4,5 +4,5 @@ FROM alpine:3.6
 RUN apk --no-cache add \
   curl jq bash
 
-COPY entrypoint.sh /entrypoint.sh
+COPY entrypoint.sh eureka_utils.sh /
 ENTRYPOINT ["/entrypoint.sh"]
