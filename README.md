@@ -1,8 +1,8 @@
 # docker-eureka
 
 ```
-docker build -t eureka-local .
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -p 5000:5000 -e FLASK_DEBUG=1 logimethods/eureka
+docker build -t logimethods/eureka-local .
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -p 5000:5000 -e FLASK_DEBUG=1 logimethods/eureka-local
 ```
 ```
 docker service create --network ${network} --name eureka --mount type=bind,source=/var/run/docker.sock,destination=/var/run/docker.sock -p 5000:5000 -e FLASK_DEBUG=0 logimethods/eureka
@@ -31,10 +31,11 @@ curl http://localhost:5000/services
 ## TEST (Ping)
 
 ```
-ping > docker build -t ping-local .
-docker run --rm -it --network ${network} --name ping -e DEPENDS_ON=eureka,ping0 -e WAIT_FOR=www.docker.com:80,eureka_local,ping0 -e CHECK_TIMEOUT=10 ping-local
+./build_local.sh
 
-docker run --rm -it --network ${network} --name ping0 --sysctl net.ipv4.icmp_echo_ignore_all=1 -v /proc:/writable-proc -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true ping-local
+docker run --rm -it --network ${network} --name ping -e DEPENDS_ON=eureka,ping0 -e WAIT_FOR=www.docker.com:80,eureka_local,ping0 -e CHECK_TIMEOUT=10 logimethods/ping-local
+
+docker run --rm -it --network ${network} --name ping0 --sysctl net.ipv4.icmp_echo_ignore_all=1 -v /proc:/writable-proc -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true logimethods/ping-local
 ```
 
 * https://stackoverflow.com/questions/26177059/refresh-net-core-somaxcomm-or-any-sysctl-property-for-docker-containers/26197875#26197875

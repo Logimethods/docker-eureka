@@ -1,9 +1,11 @@
 #!/bin/bash
 
+docker build -t logimethods/eureka-local .
+
 pushd entrypoint
-docker build -t entrypoint-local .
+docker build -t logimethods/entrypoint-local .
 popd
 
 pushd ping
-docker build -t ping-local .
+docker build -t logimethods/ping-local .
 popd
