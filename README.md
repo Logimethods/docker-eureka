@@ -62,3 +62,5 @@ docker run --rm -it --network ${network} logimethods/eureka:ping
 <name> can be based on a Python Regex: https://docs.python.org/3.6/library/re.html
 
 https://github.com/docker/swarm/issues/1106
+
+Waiting for [Multi-Stage builds on docker hub](https://github.com/docker/hub-feedback/issues/1039)
