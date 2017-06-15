@@ -34,15 +34,15 @@ setup_local_containers() {
   # https://stedolan.github.io/jq/
   while IFS="=" read name value; do
     container="${value/%\ */}"
-    export "${name}=${container}"
+    export "${name//-/_}=\"${container}\""
     add_dns_entry ${name} ${container}
 
-    export "${name}0=$value"
+    export "${name//-/_}0=\"$value\""
     i=1
     for container in $value; do
       ## Stored as an Environment Variable
       entry=${name}$((i++))
-      export "${entry}=${container}"
+      export "${entry//-/_}=\"${container}\""
       ## Added as a DNS entry
       add_dns_entry ${entry} ${container}
     done
