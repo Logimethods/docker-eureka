@@ -48,6 +48,10 @@ docker run --rm -it --network ${network} --name ping -e DEPENDS_ON=eureka,ping0 
 ```
 docker run --rm -it --network ${network} --name ping0 --sysctl net.ipv4.icmp_echo_ignore_all=1 -v /proc:/writable-proc -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true ping_container
 ```
+or, as a service
+```
+docker run --rm -it --network ${network} --name ping0 --mount type=bind,source=/proc,destination=/writable-proc -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true ping_container
+```
 
 ## EXPERIMENTAL & DEV REFERENCES
 
