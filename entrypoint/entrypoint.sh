@@ -41,4 +41,4 @@ fi
   setup_local_containers ;
   initial_check $cmdpid ;
   (infinite_setup_check $cmdpid) &
-  exec "$@" | while read line; do >&2 echo "$line"; monitor_output "$line" $cmdpid ; done )
+  exec "$@" 2>&1 | while read line; do >&1 echo "$line"; monitor_output "$line" $cmdpid ; done )

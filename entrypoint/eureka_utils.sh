@@ -203,12 +203,12 @@ monitor_output() {
   declare cmdpid=$2
 
   if [ "$ready" = false ] && [[ $1 == *"${READY_WHEN}"* ]]; then
-    >&2 echo "READY!"
+    >&2 echo "EUREKA READY!"
     ready="$READINESS"
     enable_ping
   fi
   if [ "$ready" = true ] && [[ $1 == *"${FAILED_WHEN}"* ]]; then
-    >&2 echo "FAILED!"
+    >&2 echo "EUREKA FAILED!"
     if [ ${KILL_WHEN_FAILED} ]; then
       kill_cmdpid $cmdpid
     else
