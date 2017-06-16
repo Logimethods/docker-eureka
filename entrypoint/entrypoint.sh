@@ -1,12 +1,13 @@
 #!/bin/bash
 set -e
 
-source eureka_utils.sh
+source /eureka_utils.sh
 
 ### PROVIDE LOCAL URLS ###
 # An alternative to https://github.com/docker/swarm/issues/1106
 
-: ${EUREKA_URL:=eureka}
+EUREKA_URL_INTERNAL=${EUREKA_URL}
+: ${EUREKA_URL_INTERNAL:=eureka}
 : ${EUREKA_PORT:=5000}
 
 ### CHECK DEPENDENCIES ###
@@ -41,4 +42,4 @@ fi
   setup_local_containers ;
   initial_check $cmdpid ;
   (infinite_setup_check $cmdpid) &
-  exec "$@" 2>&1 | while read line; do >&1 echo "$line"; monitor_output "$line" $cmdpid ; done )
+  exec "$@" 2>&1 | while read line; do >&1 echo "${EUREKA_LINE_START}${line}"; monitor_output "$line" $cmdpid ; done )

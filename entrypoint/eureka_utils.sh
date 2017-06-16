@@ -22,39 +22,41 @@ add_dns_entry() {
 }
 
 setup_local_containers() {
-  # http://blog.jonathanargentiero.com/docker-sed-cannot-rename-etcsedl8ysxl-device-or-resource-busy/
-  cp /etc/hosts ~/hosts.new
+  if [[ "${SETUP_LOCAL_CONTAINERS}" || "${EUREKA_URL}" ]]; then
+    # http://blog.jonathanargentiero.com/docker-sed-cannot-rename-etcsedl8ysxl-device-or-resource-busy/
+    cp /etc/hosts ~/hosts.new
 
-  if [ -z "$NODE_ID" ]; then
-      SERVICES=$(call_eureka http://${EUREKA_URL}:${EUREKA_PORT}/services)
-  else
-      SERVICES=$(call_eureka http://${EUREKA_URL}:${EUREKA_PORT}/services/node/${NODE_ID})
-  fi
+    if [ -z "$NODE_ID" ]; then
+        SERVICES=$(call_eureka http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}/services)
+    else
+        SERVICES=$(call_eureka http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}/services/node/${NODE_ID})
+    fi
 
-  # https://stedolan.github.io/jq/
-  while IFS="=" read name value; do
-    container="${value/%\ */}"
-    export "${name//-/_}=\"${container}\""
-    add_dns_entry ${name} ${container}
+    # https://stedolan.github.io/jq/
+    while IFS="=" read name value; do
+      container="${value/%\ */}"
+      export "${name//-/_}=\"${container}\""
+      add_dns_entry ${name} ${container}
 
-    export "${name//-/_}0=\"$value\""
-    i=1
-    for container in $value; do
-      ## Stored as an Environment Variable
-      entry=${name}$((i++))
-      export "${entry//-/_}=\"${container}\""
-      ## Added as a DNS entry
-      add_dns_entry ${entry} ${container}
-    done
-  done < <( echo "$SERVICES" | jq '.[] | tostring' | sed -e 's/\"{\\\"//g' -e 's/\\\"\:\[\\\"/_local=/g' -e 's/\\\",\\\"/\\\ /g' -e 's/\\\"]}\"//g')
+      export "${name//-/_}0=\"$value\""
+      i=1
+      for container in $value; do
+        ## Stored as an Environment Variable
+        entry=${name}$((i++))
+        export "${entry//-/_}=\"${container}\""
+        ## Added as a DNS entry
+        add_dns_entry ${entry} ${container}
+      done
+    done < <( echo "$SERVICES" | jq '.[] | tostring' | sed -e 's/\"{\\\"//g' -e 's/\\\"\:\[\\\"/_local=/g' -e 's/\\\",\\\"/\\\ /g' -e 's/\\\"]}\"//g')
 
-  # cp -f ~/hosts.new /etc/hosts # cp: can't create '/etc/hosts': File exists
-  echo "$(cat ~/hosts.new)" > /etc/hosts
+    # cp -f ~/hosts.new /etc/hosts # cp: can't create '/etc/hosts': File exists
+    echo "$(cat ~/hosts.new)" > /etc/hosts
 
-  if [ "$DEBUG" = "true" ]; then
-    echo $EUREKA_URL:$EUREKA_PORT
-    env | grep _local | sort
-    cat /etc/hosts
+    if [ "$DEBUG" = "true" ]; then
+      echo $EUREKA_URL_INTERNAL:$EUREKA_PORT
+      env | grep _local | sort
+      cat /etc/hosts
+    fi
   fi
 }
 
@@ -118,7 +120,7 @@ initial_check() {
   # https://docs.docker.com/compose/startup-order/
   if [ "${DEPENDS_ON}" ]; then
     >&2 echo "Checking DEPENDENCIES ${DEPENDS_ON}"
-    until [ "$(call_eureka http://${EUREKA_URL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})" == "OK" ]; do
+    until [ "$(call_eureka http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})" == "OK" ]; do
       >&2 echo "Still WAITING for Dependencies ${DEPENDS_ON}"
       sleep $interval
     done
@@ -160,7 +162,7 @@ check_dependencies(){
   declare cmdpid=$1
 
   if [ "${DEPENDS_ON}" ]; then
-    dependencies_checked=$(call_eureka http://${EUREKA_URL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})
+    dependencies_checked=$(call_eureka http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})
     if [ "$dependencies_checked" != "OK" ]; then
       >&2 echo "Failed Check Dependencies ${DEPENDS_ON}"
       kill_cmdpid $cmdpid
@@ -189,14 +191,16 @@ check_dependencies(){
 }
 
 infinite_setup_check(){
-  while true
-  do
-    setup_local_containers &
-    sleep $interval
-    if [[ "${DEPENDS_ON}" || "${CHECK_TIMEOUT}" ]]; then
-      check_dependencies $1 &
-    fi
-  done
+  if [[ "${SETUP_LOCAL_CONTAINERS}" || "${EUREKA_URL}" || "${DEPENDS_ON}" || "${CHECK_TIMEOUT}" ]]; then
+    while true
+    do
+      setup_local_containers &
+      sleep $interval
+      if [[ "${DEPENDS_ON}" || "${CHECK_TIMEOUT}" ]]; then
+        check_dependencies $1 &
+      fi
+    done
+  fi
 }
 
 monitor_output() {

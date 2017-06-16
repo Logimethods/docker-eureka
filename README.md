@@ -24,7 +24,7 @@ Note: `<name>` can be a Python Regex: https://docs.python.org/3.6/library/re.htm
 
 #### Through a Container (that needs to be extended)
 ```
-docker run --rm --network ${network} --name entrypoint logimethods/eureka:entrypoint env
+docker run --rm --network ${network} --name entrypoint -e SETUP_LOCAL_CONTAINERS=true -e EUREKA_LINE_START=">> " logimethods/eureka:entrypoint env
 ```
 
 `xxx_url` -> the first URL
