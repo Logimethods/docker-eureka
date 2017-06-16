@@ -1,26 +1,18 @@
 # docker-eureka
 
+## The Eureka Server
+### Start
+To run it:
 ```
-docker build -t logimethods/eureka-local .
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -p 5000:5000 -e FLASK_DEBUG=1 logimethods/eureka-local
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -p 5000:5000 -e FLASK_DEBUG=1 logimethods/eureka
 ```
+or, as a service
 ```
 docker service create --network ${network} --name eureka --mount type=bind,source=/var/run/docker.sock,destination=/var/run/docker.sock -p 5000:5000 -e FLASK_DEBUG=0 logimethods/eureka
 ```
 
-```
-entrypoint> docker build -t entrypoint-local .
-docker run --rm --network ${network} --name entrypoint entrypoint-local env
-```
-```
-docker run --rm --network ${network} --name entrypoint logimethods/eureka;entrypoint env
-```
-
-xxx_url -> the first URL
-xxx_url0 -> all the URLs
-xxx_url1 -> URL 1
-xxx_url{n} -> URL {n}
-
+### Usage
+#### As a service
 ```
 curl http://localhost:5000/container/id/<name>
 curl http://localhost:5000/service/id/<string:node>/<string:name>
@@ -28,15 +20,36 @@ curl http://localhost:5000/services/node/<string:node>
 curl http://localhost:5000/services
 ```
 
-## TEST (Ping)
+Note: `<name>` can be a Python Regex: https://docs.python.org/3.6/library/re.html
 
+#### Through a Container (that needs to be extended)
 ```
-./build_local.sh
-
-docker run --rm -it --network ${network} --name ping -e DEPENDS_ON=eureka,ping0 -e WAIT_FOR=www.docker.com:80,eureka_local,ping0 -e CHECK_TIMEOUT=10 logimethods/ping-local
-
-docker run --rm -it --network ${network} --name ping0 --sysctl net.ipv4.icmp_echo_ignore_all=1 -v /proc:/writable-proc -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true logimethods/ping-local
+docker run --rm --network ${network} --name entrypoint logimethods/eureka:entrypoint env
 ```
+
+`xxx_url` -> the first URL
+`xxx_url0` -> all the URLs
+`xxx_url1` -> URL 1
+`xxx_url{n}` -> URL {n}
+
+## DEPENDS_ON & WAIT_FOR
+First, build the "ping" Image:
+```
+pushd ping
+docker build -t ping_container .
+popd
+```
+Make sure that the Eureka Server is started, then run on two separate terminals
+* the Container that is _waiting_
+```
+docker run --rm -it --network ${network} --name ping -e DEPENDS_ON=eureka,ping0 -e WAIT_FOR=www.docker.com:80,eureka_local,ping0 -e CHECK_TIMEOUT=10 ping_container
+```
+* The Container that is _expected_
+```
+docker run --rm -it --network ${network} --name ping0 --sysctl net.ipv4.icmp_echo_ignore_all=1 -v /proc:/writable-proc -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true ping_container
+```
+
+## EXPERIMENTAL & DEV REFERENCES
 
 * https://stackoverflow.com/questions/26177059/refresh-net-core-somaxcomm-or-any-sysctl-property-for-docker-containers/26197875#26197875
 * https://stackoverflow.com/questions/26050899/how-to-mount-host-volumes-into-docker-containers-in-dockerfile-during-build
@@ -46,7 +59,6 @@ docker run --rm -it --network ${network} --name ping0 --sysctl net.ipv4.icmp_ech
 docker run --rm -it --network ${network} logimethods/eureka:ping
 ```
 
-<name> can be based on a Python Regex: https://docs.python.org/3.6/library/re.html
 
 https://github.com/docker/swarm/issues/1106
 
