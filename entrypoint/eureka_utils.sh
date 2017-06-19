@@ -67,10 +67,12 @@ setup_local_containers() {
 # https://stackoverflow.com/questions/26050899/how-to-mount-host-volumes-into-docker-containers-in-dockerfile-during-build
 # docker run ... -v /proc:/writable-proc ...
 desable_ping() {
+  if [ "$DEBUG" = "true" ]; then whoami; fi
   echo "1" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
 }
 
 enable_ping() {
+  if [ "$DEBUG" = "true" ]; then whoami; fi
   echo "0" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
 }
 
@@ -200,6 +202,18 @@ infinite_setup_check(){
         check_dependencies $1 &
       fi
     done
+  fi
+}
+
+infinite_monitor(){
+  if [ -n "${READY_WHEN}" ] | [ -n "${READY_WHEN}" ]; then
+    exec 1> >(
+    while read line
+    do
+      >&2 echo "${EUREKA_LINE_START}${line}"
+      monitor_output "$line" $1
+    done
+    )
   fi
 }
 

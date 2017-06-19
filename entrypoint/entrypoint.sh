@@ -41,4 +41,5 @@ fi
   setup_local_containers ;
   initial_check $cmdpid ;
   (infinite_setup_check $cmdpid) &
-  exec "$@" 2>&1 | while read line; do >&1 echo "${EUREKA_LINE_START}${line}"; monitor_output "$line" $cmdpid ; done )
+  infinite_monitor $cmdpid ;
+  exec "$@" 2>&1 )
