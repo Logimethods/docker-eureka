@@ -65,7 +65,8 @@ docker run --rm -it --network ${network} --name ping0 --mount type=bind,source=/
 COPY --from=entrypoint eureka_utils.sh /eureka_utils.sh
 COPY --from=entrypoint entrypoint.sh /entrypoint.sh
 RUN head -n -1 /docker-entrypoint.sh > /merged_entrypoint.sh ; \
-    tail -n +3  /entrypoint.sh >> /merged_entrypoint.sh
+    tail -n +3  /entrypoint.sh >> /merged_entrypoint.sh \
+    chmod +x /merged_entrypoint.sh
 ## RUN cat /merged_entrypoint.sh
 ```
 
