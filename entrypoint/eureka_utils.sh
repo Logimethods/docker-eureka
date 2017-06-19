@@ -22,7 +22,7 @@ add_dns_entry() {
 }
 
 setup_local_containers() {
-  if [[ "${SETUP_LOCAL_CONTAINERS}" || "${EUREKA_URL}" ]]; then
+  if [ -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ]; then
     # http://blog.jonathanargentiero.com/docker-sed-cannot-rename-etcsedl8ysxl-device-or-resource-busy/
     cp /etc/hosts ~/hosts.new
 
@@ -193,12 +193,12 @@ check_dependencies(){
 }
 
 infinite_setup_check(){
-  if [[ "${SETUP_LOCAL_CONTAINERS}" || "${EUREKA_URL}" || "${DEPENDS_ON}" || "${CHECK_TIMEOUT}" ]]; then
+  if [ -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ] || [ -n "${DEPENDS_ON}" ] || [ -n "${CHECK_TIMEOUT}" ]; then
     while true
     do
       setup_local_containers &
       sleep $interval
-      if [[ "${DEPENDS_ON}" || "${CHECK_TIMEOUT}" ]]; then
+      if [ -n "${DEPENDS_ON}" ] || [ -n "${CHECK_TIMEOUT}" ]; then
         check_dependencies $1 &
       fi
     done
