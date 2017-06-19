@@ -59,6 +59,16 @@ or, as a service
 docker run --rm -it --network ${network} --name ping0 --mount type=bind,source=/proc,destination=/writable-proc -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true ping_container
 ```
 
+## `entrypoint.sh` MERGING
+
+```
+COPY --from=entrypoint eureka_utils.sh /eureka_utils.sh
+COPY --from=entrypoint entrypoint.sh /entrypoint.sh
+RUN head -n -1 /docker-entrypoint.sh > /merged_entrypoint.sh ; \
+    tail -n +3  /entrypoint.sh >> /merged_entrypoint.sh
+## RUN cat /merged_entrypoint.sh
+```
+
 ## EXPERIMENTAL & DEV REFERENCES
 
 * https://stackoverflow.com/questions/26177059/refresh-net-core-somaxcomm-or-any-sysctl-property-for-docker-containers/26197875#26197875
