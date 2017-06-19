@@ -23,14 +23,13 @@ declare -i delay=CHECK_KILL_DELAY
 
 #### Continuous Checks ####
 
-if [ ${FAILED_WHEN} ]; then
+if [ -n "${FAILED_WHEN}" ]; then
   declare READINESS=true
 else
   declare READINESS="null"
 fi
 
-: ${READY_WHEN:=""}
-if [ ${READY_WHEN} ]; then
+if [ -n "${READY_WHEN}" ]; then
   declare ready=false
   desable_ping
 else

@@ -2,6 +2,8 @@
 # https://github.com/Logimethods/docker-eureka
 FROM logimethods/eureka:entrypoint as entrypoint
 
+### MAIN FROM ###
+
 FROM alpine:3.6
 # https://stedolan.github.io/jq/
 RUN apk --no-cache add \
