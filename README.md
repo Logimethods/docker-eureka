@@ -1,6 +1,9 @@
 # docker-eureka
 
 ## The Eureka Server
+
+Provides a solution to [Proposal: Use Swarm place holders to supply target host and port to Docker run #1106](https://github.com/docker/swarm/issues/1106) & related issues.
+
 ### Start
 To run it:
 ```
@@ -33,6 +36,9 @@ docker run --rm --network ${network} --name entrypoint -e SETUP_LOCAL_CONTAINERS
 `xxx_url{n}` -> URL {n}
 
 ## DEPENDS_ON & WAIT_FOR
+
+Provides a solution to [Missing Depends_ON functionality during start process within docker-swarm #31333](https://github.com/moby/moby/issues/31333#issuecomment-303250242).
+
 First, build the "ping" Image:
 ```
 pushd ping
