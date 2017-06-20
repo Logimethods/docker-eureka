@@ -3,6 +3,8 @@ set -e
 
 source /eureka_utils.sh
 
+include /entrypoint_insert.sh
+
 ### EXEC CMD ###
 ( cmdpid=$BASHPID ;
   setup_local_containers ;

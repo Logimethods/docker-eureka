@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# https://stackoverflow.com/questions/10735574/include-source-script-if-it-exists-in-bash
+include () {
+    #  [ -f "$1" ] && source "$1" WILL EXIT...
+    if [ -f $1 ]; then
+        source $1
+    fi
+}
+
 ### PROVIDE LOCAL URLS ###
 # An alternative to https://github.com/docker/swarm/issues/1106
 
