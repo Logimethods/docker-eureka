@@ -193,12 +193,12 @@ check_dependencies(){
 }
 
 infinite_setup_check(){
-  if [ -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ] || [ -n "${DEPENDS_ON}" ] || [ -n "${CHECK_TIMEOUT}" ]; then
+  if [ -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ] || [ -n "${DEPENDS_ON}" ] || [ -n "${WAIT_FOR}" ]; then
     while true
     do
       setup_local_containers &
       sleep $interval
-      if [ -n "${DEPENDS_ON}" ] || [ -n "${CHECK_TIMEOUT}" ]; then
+      if [ -n "${DEPENDS_ON}" ] || [ -n "${WAIT_FOR}" ]; then
         check_dependencies $1 &
       fi
     done
