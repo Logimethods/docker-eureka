@@ -48,15 +48,15 @@ popd
 Make sure that the Eureka Server is started, then run on two separate terminals
 * the Container that is _waiting_
 ```
-docker run --rm -it --network ${network} --name ping -e DEPENDS_ON=eureka,ping0 -e WAIT_FOR=www.docker.com:80,eureka_local,ping0 -e SETUP_LOCAL_CONTAINERS=true -e CHECK_TIMEOUT=10 ping_container ping eureka_local
+docker run --rm -it --network ${network} --name ping -e DEPENDS_ON=eureka,ping0 -e WAIT_FOR=www.docker.com:80,eureka_local,ping0 -e SETUP_LOCAL_CONTAINERS=true -e CHECK_TIMEOUT=25 ping_container ping eureka_local
 ```
 * The Container that is _expected_
 ```
-docker run --rm -it --network ${network} --name ping0 --sysctl net.ipv4.icmp_echo_ignore_all=1 -v /proc:/writable-proc -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true ping_container ping eureka
+docker run --rm -it --network ${network} --name ping0 --sysctl net.ipv4.icmp_echo_ignore_all=1 -v /proc:/writable-proc -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true ping_container ping www.docker.com
 ```
 or, as a service
 ```
-docker run --rm -it --network ${network} --name ping0 --mount type=bind,source=/proc,destination=/writable-proc -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true ping_container
+docker run --rm -it --network ${network} --name ping0 --mount type=bind,source=/proc,destination=/writable-proc -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true ping_container ping www.docker.com
 ```
 
 ## `entrypoint.sh` MERGING

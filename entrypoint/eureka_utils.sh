@@ -92,35 +92,33 @@ initial_check() {
   declare cmdpid=$1
 
   #### SETUP timeout
-
-  if [ "${CHECK_TIMEOUT}" ]; then
+  if [ -n "${CHECK_TIMEOUT}" ]; then
     # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
-    # Timeout.
     declare -i timeout=CHECK_TIMEOUT
-    # kill -0 pid   Exit code indicates if a signal may be sent to $pid process.
     (
-        ((t = timeout))
-
-        while ((t > 0)); do
+        for ((t = timeout; t > 0; t -= interval)); do
             echo "$t Second(s) Remaining Before Timeout"
             sleep $interval
+            # kill -0 pid   Exit code indicates if a signal may be sent to $pid process.
             kill -0 $$ || exit 0
-            ((t -= interval))
         done
 
-        if ((started == 0)); then
-          echo "Timeout. Will EXIT"
-          # Be nice, post SIGTERM first.
-          # The 'exit 0' below will be executed if any preceeding command fails.
-          kill -s SIGTERM $cmdpid && kill -0 $cmdpid || exit 0
-          sleep $delay
-          kill -s SIGKILL $cmdpid
-        fi
+        echo "Timeout. Will EXIT"
+        # Be nice, post SIGTERM first.
+        # The 'exit 0' below will be executed if any preceeding command fails.
+        kill -s SIGTERM $cmdpid && kill -0 $cmdpid || exit 0
+        sleep $delay
+        kill -s SIGKILL $cmdpid
     ) 2> /dev/null &
+
+    # $! expands to the PID of the last process executed in the background.
+    timeout_pid=$!
+    # https://stackoverflow.com/questions/5719030/bash-silently-kill-background-function-process
+    disown
   fi
 
   # https://docs.docker.com/compose/startup-order/
-  if [ "${DEPENDS_ON}" ]; then
+  if [ -n "${DEPENDS_ON}" ]; then
     >&2 echo "Checking DEPENDENCIES ${DEPENDS_ON}"
     until [ "$(call_eureka http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})" == "OK" ]; do
       >&2 echo "Still WAITING for Dependencies ${DEPENDS_ON}"
@@ -129,7 +127,7 @@ initial_check() {
   fi
 
   # https://github.com/Eficode/wait-for
-  if [ "${WAIT_FOR}" ]; then
+  if [ -n "${WAIT_FOR}" ]; then
     >&2 echo "Checking URLS $WAIT_FOR"
     URLS=$(echo $WAIT_FOR | tr "," "\n")
     for URL in $URLS
@@ -152,9 +150,10 @@ initial_check() {
     done
   fi
 
-  if [ "${CHECK_TIMEOUT}" ]; then
-    # $! expands to the PID of the last process executed in the background.
-    kill $!
+  # Kill the CHECK_TIMEOUT loop if still alive
+  if [ -n "${CHECK_TIMEOUT}" ]; then
+    echo "KILL KILL ! $timeout_pid / $cmdpid"
+    kill $timeout_pid
   fi
 }
 
@@ -163,7 +162,7 @@ initial_check() {
 check_dependencies(){
   declare cmdpid=$1
 
-  if [ "${DEPENDS_ON}" ]; then
+  if [ -n "${DEPENDS_ON}" ]; then
     dependencies_checked=$(call_eureka http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})
     if [ "$dependencies_checked" != "OK" ]; then
       >&2 echo "Failed Check Dependencies ${DEPENDS_ON}"
@@ -172,7 +171,7 @@ check_dependencies(){
   fi
 
   # https://github.com/Eficode/wait-for
-  if [ "${WAIT_FOR}" ]; then
+  if [ -n "${WAIT_FOR}" ]; then
     URLS=$(echo $WAIT_FOR | tr "," "\n")
     for URL in $URLS
     do
@@ -235,3 +234,36 @@ monitor_output() {
     fi
   fi
 }
+
+### PROVIDE LOCAL URLS ###
+# An alternative to https://github.com/docker/swarm/issues/1106
+
+EUREKA_URL_INTERNAL=${EUREKA_URL}
+: ${EUREKA_URL_INTERNAL:=eureka}
+: ${EUREKA_PORT:=5000}
+
+### CHECK DEPENDENCIES ###
+# https://github.com/moby/moby/issues/31333#issuecomment-303250242
+
+: ${CHECK_DEPENDENCIES_INTERVAL:=2}
+: ${CHECK_KILL_DELAY:=5}
+
+# Interval between checks if the process is still alive.
+declare -i interval=CHECK_DEPENDENCIES_INTERVAL
+# Delay between posting the SIGTERM signal and destroying the process by SIGKILL.
+declare -i delay=CHECK_KILL_DELAY
+
+#### Continuous Checks ####
+
+if [ -n "${FAILED_WHEN}" ]; then
+  declare READINESS=true
+else
+  declare READINESS="null"
+fi
+
+if [ -n "${READY_WHEN}" ]; then
+  declare ready=false
+  desable_ping
+else
+  declare ready=$READINESS
+fi
