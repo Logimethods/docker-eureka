@@ -11,6 +11,7 @@ COPY --from=entrypoint entrypoint.sh /entrypoint.sh
 
 # OPTIONAL
 COPY entrypoint_insert.sh /entrypoint_insert.sh
+COPY entrypoint_finalize.sh /entrypoint_finalize.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ping eureka

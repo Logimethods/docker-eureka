@@ -4,6 +4,7 @@
 include () {
     #  [ -f "$1" ] && source "$1" WILL EXIT...
     if [ -f $1 ]; then
+        echo "source $1"
         source $1
     fi
 }
@@ -229,6 +230,10 @@ monitor_output() {
 
   if [ "$ready" = false ] && [[ $1 == *"${READY_WHEN}"* ]]; then
     >&2 echo "EUREKA READY!"
+
+    ## Optional finalizing
+    include entrypoint_finalize.sh
+
     ready="$READINESS"
     enable_ping
   fi
