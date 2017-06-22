@@ -31,7 +31,7 @@ add_dns_entry() {
 }
 
 setup_local_containers() {
-  if [ -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ]; then
+  if [ -n "${NODE_ID}" ] || -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ]; then
     # http://blog.jonathanargentiero.com/docker-sed-cannot-rename-etcsedl8ysxl-device-or-resource-busy/
     cp /etc/hosts ~/hosts.new
 

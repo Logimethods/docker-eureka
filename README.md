@@ -11,7 +11,7 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -p 5000:5000 -e FLA
 ```
 or, as a service
 ```
-docker service create --network ${network} --name eureka --mount type=bind,source=/var/run/docker.sock,destination=/var/run/docker.sock -p 5000:5000 -e FLASK_DEBUG=0 logimethods/eureka
+docker service create --network ${network} --constraint=node.role==manager --name eureka --mount type=bind,source=/var/run/docker.sock,destination=/var/run/docker.sock -p 5000:5000 -e FLASK_DEBUG=0 logimethods/eureka
 ```
 
 ### Usage
@@ -27,7 +27,7 @@ Note: `<name>` can be a Python Regex: https://docs.python.org/3.6/library/re.htm
 
 #### Through a Container (that needs to be extended)
 ```
-docker run --rm --network ${network} --name entrypoint -e SETUP_LOCAL_CONTAINERS=true -e EUREKA_LINE_START=">> " logimethods/eureka:entrypoint env
+docker run --rm --network ${network} --name entrypoint --constraint=node.role!=manager -e NODE_ID={{.Node.ID}} -e EUREKA_LINE_START=">> " logimethods/eureka:entrypoint env
 ```
 
 `xxx_url` -> the first URL
