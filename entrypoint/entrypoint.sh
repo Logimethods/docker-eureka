@@ -11,4 +11,5 @@ include /entrypoint_insert.sh
   initial_check $cmdpid ;
   (infinite_setup_check $cmdpid) &
   infinite_monitor $cmdpid ;
+  include /entrypoint_prepare.sh ;
   exec "$@" 2>&1 )

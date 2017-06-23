@@ -31,7 +31,7 @@ add_dns_entry() {
 }
 
 setup_local_containers() {
-  if [ -n "${NODE_ID}" ] || -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ]; then
+  if [ -n "${NODE_ID}" ] || [ -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ]; then
     # http://blog.jonathanargentiero.com/docker-sed-cannot-rename-etcsedl8ysxl-device-or-resource-busy/
     cp /etc/hosts ~/hosts.new
 
@@ -44,7 +44,7 @@ setup_local_containers() {
     # https://stedolan.github.io/jq/
     while IFS="=" read name value; do
       container="${value/%\ */}"
-      export "${name//-/_}=\"${container}\""
+      export "${name//-/_}=${container}"
       add_dns_entry ${name} ${container}
 
       export "${name//-/_}0=\"$value\""
@@ -52,7 +52,7 @@ setup_local_containers() {
       for container in $value; do
         ## Stored as an Environment Variable
         entry=${name}$((i++))
-        export "${entry//-/_}=\"${container}\""
+        export "${entry//-/_}=${container}"
         ## Added as a DNS entry
         add_dns_entry ${entry} ${container}
       done
