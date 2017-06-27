@@ -6,6 +6,21 @@ import docker
 import re
 import json
 
+## https://stackoverflow.com/questions/2953462/pinging-servers-in-python
+from platform import system as system_name # Returns the system/OS name
+from os import system as system_call       # Execute a shell command
+
+def check_ping(host):
+    """
+    Returns True if host (str) responds to a ping request.
+    Remember that some hosts may not respond to a ping request even if the host name is valid.
+    """
+    # Ping parameters as function of OS
+    parameters = "-n 1" if system_name().lower()=="windows" else "-c 1"
+    # Pinging
+    return system_call("ping " + parameters + " " + host) == 0
+
+
 client = docker.from_env()
 
 
@@ -147,6 +162,10 @@ def services():
 @app.route('/dependencies/<string:str>')
 def dependencies(str):
     return check_dependencies(str)
+
+@app.route('/ping/<string:str>')
+def ping(str):
+    return "OK" if check_ping(str) else "KO"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0')
