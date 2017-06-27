@@ -48,7 +48,7 @@ popd
 Make sure that the Eureka Server is started, then run on two separate terminals
 * the Container that is _waiting_
 ```
-docker run --rm -it --network ${network} --name ping -e DEPENDS_ON=eureka,ping0 -e WAIT_FOR=www.docker.com:80,eureka_local,ping0 -e SETUP_LOCAL_CONTAINERS=true -e CHECK_TIMEOUT=25 ping_container ping eureka_local
+docker run --rm -it --network ${network} --name ping -v /proc:/writable-proc -e DEPENDS_ON=eureka,ping0 -e WAIT_FOR=www.docker.com:80,eureka_local,ping0 -e SETUP_LOCAL_CONTAINERS=true -e CHECK_TIMEOUT=25 ping_container ping eureka_local
 ```
 * The Container that is _expected_
 ```

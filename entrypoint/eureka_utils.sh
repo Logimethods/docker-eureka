@@ -138,6 +138,8 @@ initial_check() {
 
   # https://docs.docker.com/compose/startup-order/
   if [ -n "${DEPENDS_ON}" ]; then
+    desable_ping
+
     >&2 echo "Checking DEPENDENCIES ${DEPENDS_ON}"
     until [ "$(call_eureka /dependencies/${DEPENDS_ON})" == "OK" ]; do
       >&2 echo "Still WAITING for Dependencies ${DEPENDS_ON}"
@@ -147,6 +149,8 @@ initial_check() {
 
   # https://github.com/Eficode/wait-for
   if [ -n "${WAIT_FOR}" ]; then
+    desable_ping
+
     >&2 echo "Checking URLS $WAIT_FOR"
     URLS=$(echo $WAIT_FOR | tr "," "\n")
     for URL in $URLS
@@ -169,6 +173,8 @@ initial_check() {
     done
   fi
 
+  enable_ping
+  
   # Kill the CHECK_TIMEOUT loop if still alive
   if [ -n "${CHECK_TIMEOUT}" ]; then
     echo "KILL KILL ! $timeout_pid / $cmdpid"
