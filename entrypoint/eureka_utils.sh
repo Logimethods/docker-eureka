@@ -90,7 +90,12 @@ safe_ping() {
     ping -c1 "$1" &>/dev/null
     return $?
   else
-    test $(call_eureka /ping/$1) == "OK"
+    if [[ $1 =~ _local[0-9]*$ ]]; then # The urls ending with _local[0-9]* are not known by Eureka...
+      local url="${!1}" # https://stackoverflow.com/questions/14049057/bash-expand-variable-in-a-variable
+    else
+      local url="$1"
+    fi
+    test $(call_eureka /ping/$url) == "OK"
     return $?
   fi
 }
@@ -138,8 +143,6 @@ initial_check() {
 
   # https://docs.docker.com/compose/startup-order/
   if [ -n "${DEPENDS_ON}" ]; then
-    desable_ping
-
     >&2 echo "Checking DEPENDENCIES ${DEPENDS_ON}"
     until [ "$(call_eureka /dependencies/${DEPENDS_ON})" == "OK" ]; do
       >&2 echo "Still WAITING for Dependencies ${DEPENDS_ON}"
@@ -149,8 +152,6 @@ initial_check() {
 
   # https://github.com/Eficode/wait-for
   if [ -n "${WAIT_FOR}" ]; then
-    desable_ping
-
     >&2 echo "Checking URLS $WAIT_FOR"
     URLS=$(echo $WAIT_FOR | tr "," "\n")
     for URL in $URLS
@@ -173,8 +174,6 @@ initial_check() {
     done
   fi
 
-  enable_ping
-  
   # Kill the CHECK_TIMEOUT loop if still alive
   if [ -n "${CHECK_TIMEOUT}" ]; then
     echo "KILL KILL ! $timeout_pid / $cmdpid"
@@ -251,7 +250,7 @@ monitor_output() {
     include entrypoint_finalize.sh
 
     ready="$READINESS"
-    enable_ping
+    enable_ping &
   fi
   if [ "$ready" = true ] && [[ $1 == *"${FAILED_WHEN}"* ]]; then
     >&2 echo "EUREKA FAILED!"
@@ -259,7 +258,7 @@ monitor_output() {
       kill_cmdpid $cmdpid
     else
       ready=false
-      desable_ping
+      desable_ping &
     fi
   fi
 }
