@@ -14,9 +14,9 @@ include () {
 
 call_eureka() {
     if hash curl 2>/dev/null; then
-        curl -s "$@"
+        curl -s "http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}$@"
     else
-        wget -q -O - "$@"
+        wget -q -O - "http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}$@"
     fi
 }
 
@@ -36,9 +36,9 @@ setup_local_containers() {
     cp /etc/hosts ~/hosts.new
 
     if [ -z "$NODE_ID" ]; then
-        SERVICES=$(call_eureka http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}/services)
+        SERVICES=$(call_eureka /services)
     else
-        SERVICES=$(call_eureka http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}/services/node/${NODE_ID})
+        SERVICES=$(call_eureka /services/node/${NODE_ID})
     fi
 
     # https://stedolan.github.io/jq/
@@ -85,6 +85,16 @@ enable_ping() {
   echo "0" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
 }
 
+safe_ping() {
+  if [[ $(cat /proc/sys/net/ipv4/icmp_echo_ignore_all) == "0" ]]; then
+    ping -c1 "$1" &>/dev/null
+    return $?
+  else
+    test $(call_eureka /ping/$1) == "OK"
+    return $?
+  fi
+}
+
 kill_cmdpid () {
   declare cmdpid=$1
   # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
@@ -129,7 +139,7 @@ initial_check() {
   # https://docs.docker.com/compose/startup-order/
   if [ -n "${DEPENDS_ON}" ]; then
     >&2 echo "Checking DEPENDENCIES ${DEPENDS_ON}"
-    until [ "$(call_eureka http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})" == "OK" ]; do
+    until [ "$(call_eureka /dependencies/${DEPENDS_ON})" == "OK" ]; do
       >&2 echo "Still WAITING for Dependencies ${DEPENDS_ON}"
       sleep $interval
     done
@@ -150,7 +160,7 @@ initial_check() {
           setup_local_containers &
         done
       else # ping url
-        until ping -c1 "$URL" &>/dev/null; do
+        until safe_ping $URL; do
           >&2 echo "Still WAITING for $URL PING"
           sleep $interval
           setup_local_containers &
@@ -172,7 +182,7 @@ check_dependencies(){
   declare cmdpid=$1
 
   if [ -n "${DEPENDS_ON}" ]; then
-    dependencies_checked=$(call_eureka http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}/dependencies/${DEPENDS_ON})
+    dependencies_checked=$(call_eureka /dependencies/${DEPENDS_ON})
     if [ "$dependencies_checked" != "OK" ]; then
       >&2 echo "Failed Check Dependencies ${DEPENDS_ON}"
       kill_cmdpid $cmdpid
