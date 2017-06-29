@@ -2,6 +2,7 @@
 
 ## Docker
 
+# https://github.com/docker/docker-py
 import docker
 import re
 import json
@@ -66,13 +67,24 @@ def extract_container(service, task):
     id = task['ID']
     return service + '.' + str(slot) + '.' + str(id)
 
+def get_containers_from_tasks(service, tasks):
+    containers = []
+    if tasks: # List not empty
+        containers.append({service.name:[extract_container(service.name, d) for d in tasks]})
+        # To handle stacks
+        labels = service.attrs["Spec"]['Labels']
+        if 'com.docker.stack.namespace' in labels:
+            namespace = labels['com.docker.stack.namespace']
+            short_name = service.name[len(namespace)+1:]
+            containers.append({short_name:[extract_container(service.name, d) for d in tasks]})
+    return containers
+
 def get_containers(node):
     services = client.services.list()
     containers = []
     for service in services:
         tasks = service.tasks({'node':node, 'desired-state':'running'})
-        if tasks: # List not empty
-            containers.append({service.name:[extract_container(service.name, d) for d in tasks]})
+        containers.extend(get_containers_from_tasks(service, tasks))
     return containers
 
 def get_all_containers():
@@ -80,18 +92,29 @@ def get_all_containers():
     containers = []
     for service in services:
         tasks = service.tasks({'desired-state':'running'})
-        if tasks: # List not empty
-            containers.append({service.name:[extract_container(service.name, d) for d in tasks]})
+        containers.extend(get_containers_from_tasks(service, tasks))
     return containers
 
 def check_dependencies(str):
     containers = []
     for container in client.containers.list():
         containers.append(container.name)
+        # To handle stacks. /!\ Not 100% accurate since the client could be on another stack...
+        labels = container.labels
+        if 'com.docker.stack.namespace' in labels:
+            namespace = labels['com.docker.stack.namespace']
+            short_name = container.name[len(namespace)+1:]
+            containers.append(short_name)
     for service in client.services.list():
         tasks = service.tasks({'desired-state':'running'})
         if tasks: # List not empty
             containers.append(service.name)
+            # To handle stacks. /!\ Not 100% accurate since the client could be on another stack...
+            labels = service.attrs["Spec"]['Labels']
+            if 'com.docker.stack.namespace' in labels:
+                namespace = labels['com.docker.stack.namespace']
+                short_name = service.name[len(namespace)+1:]
+                containers.append(short_name)
     dependencies = str.split(',')
     for dependency in dependencies:
         if dependency not in containers:

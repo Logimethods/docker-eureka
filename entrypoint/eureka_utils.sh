@@ -64,6 +64,7 @@ setup_local_containers() {
     if [ "$DEBUG" = "true" ]; then
       echo $EUREKA_URL_INTERNAL:$EUREKA_PORT
       env | grep _local | sort
+      echo "---------"
       cat /etc/hosts
     fi
   fi
@@ -254,7 +255,7 @@ monitor_output() {
   fi
   if [ "$ready" = true ] && [[ $1 == *"${FAILED_WHEN}"* ]]; then
     >&2 echo "EUREKA FAILED!"
-    if [ ${KILL_WHEN_FAILED} ]; then
+    if [ "$KILL_WHEN_FAILED" = "true" ]; then
       kill_cmdpid $cmdpid
     else
       ready=false
