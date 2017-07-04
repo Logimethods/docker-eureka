@@ -12,11 +12,11 @@ include () {
 ### PROVIDE LOCAL URLS ###
 # An alternative to https://github.com/docker/swarm/issues/1106
 
-call_eureka() {
+function call_eureka() {
     if hash curl 2>/dev/null; then
-        curl -s "http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}$@"
+        echo $(curl -s "http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}$@")
     else
-        wget -q -O - "http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}$@"
+        echo $(wget -q -O - "http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}$@")
     fi
 }
 
@@ -36,9 +36,13 @@ setup_local_containers() {
     cp /etc/hosts ~/hosts.new
 
     if [ -z "$NODE_ID" ]; then
-        SERVICES=$(call_eureka /services)
+      SERVICES=$(call_eureka /services)
     else
-        SERVICES=$(call_eureka /services/node/${NODE_ID})
+      SERVICES=$(call_eureka /services/node/${NODE_ID})
+    fi
+
+    if [ "$DEBUG" = "true" ]; then
+      echo "SERVICES: $SERVICES"
     fi
 
     # https://stedolan.github.io/jq/
