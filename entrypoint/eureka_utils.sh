@@ -210,11 +210,15 @@ check_dependencies(){
         nc -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ;
         if [ $result -ne 0 ] ; then
           >&2 echo "Failed Check URL ${URL}"
-          kill_cmdpid $cmdpid
+          if [ "$KILL_WHEN_FAILED" = "true" ]; then
+            kill_cmdpid $cmdpid
+          fi
         fi
       elif ! ping -c 1 "$URL" &>/dev/null ; then # ping url
         >&2 echo "Failed ${URL} Ping"
-        kill_cmdpid $cmdpid
+        if [ "$KILL_WHEN_FAILED" = "true" ]; then
+          kill_cmdpid $cmdpid
+        fi
       fi
     done
   fi
