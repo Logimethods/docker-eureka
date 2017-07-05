@@ -82,12 +82,18 @@ setup_local_containers() {
 # docker run ... -v /proc:/writable-proc ...
 desable_ping() {
   if [ "$DEBUG" = "true" ]; then whoami; fi
-  echo "1" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
+  if [ "$DESABLE_PING_ALLOWED" != "false" ]; then
+    echo "1" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
+  else
+    echo "desable_ping not allowed"
+  fi
 }
 
 enable_ping() {
   if [ "$DEBUG" = "true" ]; then whoami; fi
-  echo "0" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
+  if [ "$DESABLE_PING_ALLOWED" != "false" ]; then
+    echo "0" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
+  fi
 }
 
 safe_ping() {
@@ -238,7 +244,7 @@ infinite_setup_check(){
 }
 
 infinite_monitor(){
-  if [ -n "${READY_WHEN}" ] | [ -n "${READY_WHEN}" ]; then
+  if [ -n "${READY_WHEN}" ] | [ -n "${FAILED_WHEN}" ]; then
     exec 1> >(
     while read line
     do
