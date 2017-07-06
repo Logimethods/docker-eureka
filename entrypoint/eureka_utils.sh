@@ -41,7 +41,7 @@ setup_local_containers() {
       SERVICES=$(call_eureka /services/node/${NODE_ID})
     fi
 
-    if [ "$DEBUG" = "true" ]; then
+    if [[ $DEBUG = *services* ]]; then
       echo "SERVICES: $SERVICES"
     fi
 
@@ -65,8 +65,9 @@ setup_local_containers() {
     # cp -f ~/hosts.new /etc/hosts # cp: can't create '/etc/hosts': File exists
     echo "$(cat ~/hosts.new)" > /etc/hosts
 
-    if [ "$DEBUG" = "true" ]; then
+    if [[ $DEBUG = *trace* ]]; then
       echo $EUREKA_URL_INTERNAL:$EUREKA_PORT
+      env | grep -v _local | sort
       env | grep _local | sort
       echo "---------"
       cat /etc/hosts
@@ -81,7 +82,8 @@ setup_local_containers() {
 # https://stackoverflow.com/questions/26050899/how-to-mount-host-volumes-into-docker-containers-in-dockerfile-during-build
 # docker run ... -v /proc:/writable-proc ...
 desable_ping() {
-  if [ "$DEBUG" = "true" ]; then whoami; fi
+  if [[ $DEBUG = *ping* ]]; then echo "desable_ping asked" ; fi
+
   if [ "$DESABLE_PING_ALLOWED" != "false" ]; then
     echo "1" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
   else
@@ -90,7 +92,8 @@ desable_ping() {
 }
 
 enable_ping() {
-  if [ "$DEBUG" = "true" ]; then whoami; fi
+  if [[ $DEBUG = *ping* ]]; then echo "enable_ping asked"; fi
+
   if [ "$DESABLE_PING_ALLOWED" != "false" ]; then
     echo "0" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
   fi
@@ -244,7 +247,12 @@ infinite_setup_check(){
 }
 
 infinite_monitor(){
-  if [ -n "${READY_WHEN}" ] | [ -n "${FAILED_WHEN}" ]; then
+  if [[ $DEBUG = *monitor* ]]; then
+    >&2 echo "infinite_monitor ASKED";
+    env
+  fi
+
+  if [ -n "${READY_WHEN}" ] || [ -n "${FAILED_WHEN}" ]; then
     exec 1> >(
     while read line
     do
@@ -252,11 +260,19 @@ infinite_monitor(){
       monitor_output "$line" $1
     done
     )
+
+    if [[ $DEBUG = *monitor* ]]; then
+      >&2 echo "infinite_monitor STARTED";
+    fi
   fi
 }
 
 monitor_output() {
   declare cmdpid=$2
+
+  if [[ $DEBUG = *tracemonitor* ]]; then
+    >&2 echo "Monitor: ready=${ready}, input='${1}'";
+  fi
 
   if [ "$ready" = false ] && [[ $1 == *"${READY_WHEN}"* ]]; then
     >&2 echo "EUREKA READY!"
