@@ -1,7 +1,7 @@
 #!/bin/bash
 
 pushd eureka
-docker build -t eureka_exp .
+docker build -t logimethods/eureka-local .
 popd
 
 pushd entrypoint
