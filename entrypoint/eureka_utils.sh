@@ -21,7 +21,7 @@ function call_eureka() {
 }
 
 function call_availablility() {
-  echo $(echo ^c | nc $@ ${EUREKA_AVAILABILITY_PORT})
+  echo ^c | nc $@ ${EUREKA_AVAILABILITY_PORT} 2>&1
 }
 
 add_dns_entry() {
