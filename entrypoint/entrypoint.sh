@@ -7,7 +7,6 @@ include /entrypoint_insert.sh
 
 ### EXEC CMD ###
 ( cmdpid=$BASHPID ;
-  setup_availability
   desable_ping &
   setup_local_containers ;
   initial_check $cmdpid ;
@@ -15,4 +14,5 @@ include /entrypoint_insert.sh
   infinite_monitor $cmdpid ;
   include /entrypoint_prepare.sh ;
   enable_ping &
+  setup_availability
   exec "$@" 2>&1 )
