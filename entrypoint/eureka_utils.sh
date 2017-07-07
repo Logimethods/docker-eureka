@@ -20,6 +20,14 @@ function call_eureka() {
     fi
 }
 
+function call_availablility() {
+    if hash curl 2>/dev/null; then
+        echo $(curl -s "http://$@:${EUREKA_AVAILABILITY_PORT}")
+    else
+        echo $(wget -q -O - "http://$@:${EUREKA_AVAILABILITY_PORT}")
+    fi
+}
+
 add_dns_entry() {
   target=$2
   host=$1
@@ -84,7 +92,12 @@ setup_local_containers() {
 desable_ping() {
   if [[ $DEBUG = *ping* ]]; then echo "desable_ping asked" ; fi
 
-  if [ "$DESABLE_PING_ALLOWED" != "false" ]; then
+  if [ "$AVAILABILITY_ALLOWED" != "false" ]; then
+    # https://github.com/docker-library/busybox/issues/32
+    write_availability_file 503 "Service Unavailable" 19
+  fi
+
+  if [ "$PING_ALLOWED" != "false" ]; then
     echo "1" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
   else
     echo "desable_ping not allowed"
@@ -94,7 +107,11 @@ desable_ping() {
 enable_ping() {
   if [[ $DEBUG = *ping* ]]; then echo "enable_ping asked"; fi
 
-  if [ "$DESABLE_PING_ALLOWED" != "false" ]; then
+  if [ "$AVAILABILITY_ALLOWED" != "false" ]; then
+    write_availability_file 200 "OK" 2
+  fi
+
+  if [ "$PING_ALLOWED" != "false" ]; then
     echo "0" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
   fi
 }
@@ -115,13 +132,40 @@ safe_ping() {
 }
 
 kill_cmdpid () {
-  declare cmdpid=$1
-  # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
-  # Be nice, post SIGTERM first.
-  # The 'exit 0' below will be executed if any preceeding command fails.
-  kill -s SIGTERM $cmdpid && kill -0 $cmdpid || exit 0
-  sleep $delay
-  kill -s SIGKILL $cmdpid
+  if [ "$KILL_WHEN_FAILED" = "true" ]; then
+    declare cmdpid=$1
+    # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
+    # Be nice, post SIGTERM first.
+    # The 'exit 0' below will be executed if any preceeding command fails.
+    kill -s SIGTERM $cmdpid && kill -0 $cmdpid || exit 0
+    sleep $delay
+    kill -s SIGKILL $cmdpid
+  else
+    ready=false
+    desable_ping &
+  fi
+}
+
+#### AVAILABILITY ###
+
+write_availability_file() {
+cat >/eureka_availability.txt <<EOL
+HTTP/1.1 ${1} ${2}
+Content-Type: text/plain
+Content-Length: ${3}
+Connection: close
+
+${2}
+EOL
+}
+
+setup_availability() {
+  if [ "$AVAILABILITY_ALLOWED" != "false" ]; then
+    # https://github.com/docker-library/busybox/issues/32
+    write_availability_file 503 "Service Unavailable" 19
+    (while true; do cat /eureka_availability.txt | nc -l -p 6868 >/dev/null; done) &
+#    (while true; do echo "OK    " | nc -l -p 6868; done) &
+  fi
 }
 
 #### Initial Checks ####
@@ -156,11 +200,23 @@ initial_check() {
   fi
 
   # https://docs.docker.com/compose/startup-order/
+  if [ -n "${DEPENDS_ON_SERVICES}" ]; then
+    >&2 echo "Checking SERVICE DEPENDENCIES ${DEPENDS_ON_SERVICES}"
+    until [ "$(call_eureka /dependencies/${DEPENDS_ON_SERVICES})" == "OK" ]; do
+      >&2 echo "Still WAITING for Service Dependencies ${DEPENDS_ON_SERVICES}"
+      sleep $interval
+    done
+  fi
+
   if [ -n "${DEPENDS_ON}" ]; then
     >&2 echo "Checking DEPENDENCIES ${DEPENDS_ON}"
-    until [ "$(call_eureka /dependencies/${DEPENDS_ON})" == "OK" ]; do
-      >&2 echo "Still WAITING for Dependencies ${DEPENDS_ON}"
-      sleep $interval
+    URLS=$(echo $DEPENDS_ON | tr "," "\n")
+    for URL in $URLS
+    do
+      until [ "$(call_availablility ${URL})" ]; do
+        >&2 echo "Still WAITING for Dependencies ${URL}"
+        sleep $interval
+      done
     done
   fi
 
@@ -200,12 +256,23 @@ initial_check() {
 check_dependencies(){
   declare cmdpid=$1
 
-  if [ -n "${DEPENDS_ON}" ]; then
-    dependencies_checked=$(call_eureka /dependencies/${DEPENDS_ON})
+  if [ -n "${DEPENDS_ON_SERVICES}" ]; then
+    dependencies_checked=$(call_eureka /dependencies/${DEPENDS_ON_SERVICES})
     if [ "$dependencies_checked" != "OK" ]; then
-      >&2 echo "Failed Check Dependencies ${DEPENDS_ON}"
+      >&2 echo "Failed Check Services Dependencies ${DEPENDS_ON_SERVICES}"
       kill_cmdpid $cmdpid
     fi
+  fi
+
+  if [ -n "${DEPENDS_ON}" ]; then
+    URLS=$(echo $DEPENDS_ON | tr "," "\n")
+    for URL in $URLS
+    do
+      if ! [ "$(call_availablility ${URL})" ]; then
+        >&2 echo "Failed ${URL} Availability"
+        kill_cmdpid $cmdpid
+      fi
+    done
   fi
 
   # https://github.com/Eficode/wait-for
@@ -223,11 +290,9 @@ check_dependencies(){
             kill_cmdpid $cmdpid
           fi
         fi
-      elif ! ping -c 1 "$URL" &>/dev/null ; then # ping url
+      elif ! safe_ping $URL ; then # ping url
         >&2 echo "Failed ${URL} Ping"
-        if [ "$KILL_WHEN_FAILED" = "true" ]; then
-          kill_cmdpid $cmdpid
-        fi
+        kill_cmdpid $cmdpid
       fi
     done
   fi
@@ -287,12 +352,7 @@ monitor_output() {
   fi
   if [ "$ready" = true ] && [[ $1 == *"${FAILED_WHEN}"* ]]; then
     >&2 echo "EUREKA: FAILED!"
-    if [ "$KILL_WHEN_FAILED" = "true" ]; then
-      kill_cmdpid $cmdpid
-    else
-      ready=false
-      desable_ping &
-    fi
+    kill_cmdpid $cmdpid
   fi
 }
 
