@@ -29,7 +29,8 @@ services:
         constraints:
           - node.role == manager
     ports:
-      - "${FLASK_PORT:-5000}:5000"
+      - "${EUREKA_PORT:-5000}:5000"
+      - 80:80
     environment:
       - FLASK_DEBUG=${FLASK_DEBUG:-0}
     volumes:
@@ -41,10 +42,11 @@ services:
     image: ping_exp
     restart: "no"
     environment:
-      - DEPENDS_ON=test_eureka,test_server_ping
-      - WAIT_FOR=www.docker.com:80,eureka_local1,server_ping
+      - DEPENDS_ON=server_ping,server_ping_local
+      - WAIT_FOR=www.docker.com:80,eureka_local,eureka_local1,server_ping,server_ping_local,server_ping_local1
       - SETUP_LOCAL_CONTAINERS=true
-#      - DEBUG=true
+      - KILL_WHEN_FAILED=false
+#      - DEBUG=trace
 #      - CHECK_DEPENDENCIES_INTERVAL=20
     volumes:
       - "/proc:/writable-proc"
@@ -58,7 +60,7 @@ services:
     environment:
       - READY_WHEN=seq=5
       - FAILED_WHEN=seq=20
-      - KILL_WHEN_FAILED=true
+      - KILL_WHEN_FAILED=false
 #      - DEBUG=true
 #      - CHECK_DEPENDENCIES_INTERVAL=20
     volumes:

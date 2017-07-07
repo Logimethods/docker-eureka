@@ -205,6 +205,9 @@ initial_check() {
     do
       until [[ "$(call_availablility ${URL})" == *OK* ]]; do
         >&2 echo "Still WAITING for Dependencies ${URL}"
+        if [[ "${URL}" == *_local* ]]; then
+          setup_local_containers &
+        fi
         sleep $interval
       done
     done
@@ -221,14 +224,18 @@ initial_check() {
         PORT=$(printf "%s\n" "$URL"| cut -d : -f 2)
         until nc -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ; [ $result -eq 0 ] ; do
           >&2 echo "Still WAITING for URL $HOST:$PORT"
+          if [[ "${HOST}" == *_local* ]]; then
+            setup_local_containers &
+          fi
           sleep $interval
-          setup_local_containers &
         done
       else # ping url
         until safe_ping $URL; do
           >&2 echo "Still WAITING for $URL PING"
+          if [[ "${URL}" == *_local* ]]; then
+            setup_local_containers &
+          fi
           sleep $interval
-          setup_local_containers &
         done
       fi
     done
@@ -330,6 +337,7 @@ monitor_output() {
   fi
 
   if [ "$ready" = false ] && [[ $1 == *"${READY_WHEN}"* ]]; then
+    # TODO Only once!!!
     >&2 echo "EUREKA: FINALIZE!"
 
     ## Optional finalizing
