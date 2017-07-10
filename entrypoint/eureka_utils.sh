@@ -90,7 +90,7 @@ desable_ping() {
 
   write_availability_file 503 "Service Unavailable" 19
 
-  if [ "$PING_ALLOWED" != "false" ]; then
+  if [ -e /writable-proc/sys/net/ipv4/icmp_echo_ignore_all ]; then
     echo "1" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
   else
     echo "desable_ping not allowed"
@@ -102,7 +102,7 @@ enable_ping() {
 
   write_availability_file 200 "OK" 2
 
-  if [ "$PING_ALLOWED" != "false" ]; then
+  if [ -e /writable-proc/sys/net/ipv4/icmp_echo_ignore_all ]; then
     echo "0" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
   fi
 }
@@ -114,9 +114,12 @@ safe_ping() {
   else
     if [[ $1 =~ _local[0-9]*$ ]]; then # The urls ending with _local[0-9]* are not known by Eureka...
       local url="${!1}" # https://stackoverflow.com/questions/14049057/bash-expand-variable-in-a-variable
+      if [[ $DEBUG = *ping* ]]; then echo "$1 resolved as ${url}" ; fi
     else
       local url="$1"
+      if [[ $DEBUG = *ping* ]]; then echo "$1 applied to ${url}" ; fi
     fi
+    if [[ $DEBUG = *ping* ]]; then echo "\$(call_eureka /ping/$url) = $(call_eureka /ping/$url)"; fi
     test $(call_eureka /ping/$url) == "OK"
     return $?
   fi
@@ -206,7 +209,7 @@ initial_check() {
       until [[ "$(call_availablility ${URL})" == *OK* ]]; do
         >&2 echo "Still WAITING for Dependencies ${URL}"
         if [[ "${URL}" == *_local* ]]; then
-          setup_local_containers &
+          setup_local_containers
         fi
         sleep $interval
       done
@@ -225,7 +228,7 @@ initial_check() {
         until nc -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ; [ $result -eq 0 ] ; do
           >&2 echo "Still WAITING for URL $HOST:$PORT"
           if [[ "${HOST}" == *_local* ]]; then
-            setup_local_containers &
+            setup_local_containers
           fi
           sleep $interval
         done
@@ -233,7 +236,7 @@ initial_check() {
         until safe_ping $URL; do
           >&2 echo "Still WAITING for $URL PING"
           if [[ "${URL}" == *_local* ]]; then
-            setup_local_containers &
+            setup_local_containers
           fi
           sleep $interval
         done
@@ -299,7 +302,7 @@ infinite_setup_check(){
   if [ -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ] || [ -n "${DEPENDS_ON}" ] || [ -n "${WAIT_FOR}" ]; then
     while true
     do
-      setup_local_containers &
+      setup_local_containers
       sleep $interval
       if [ -n "${DEPENDS_ON}" ] || [ -n "${WAIT_FOR}" ]; then
         check_dependencies $1 &

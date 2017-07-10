@@ -43,10 +43,10 @@ services:
     restart: "no"
     environment:
       - DEPENDS_ON=server_ping,server_ping_local
-      - WAIT_FOR=www.docker.com:80,eureka_local,eureka_local1,server_ping,server_ping_local,server_ping_local1
+      - WAIT_FOR=www.docker.com:80,server_ping_local,server_ping_local1,server_ping
       - SETUP_LOCAL_CONTAINERS=true
       - KILL_WHEN_FAILED=false
-#      - DEBUG=trace
+#      - DEBUG=ping,trace
 #      - CHECK_DEPENDENCIES_INTERVAL=20
     volumes:
       - "/proc:/writable-proc"
@@ -61,7 +61,7 @@ services:
       - READY_WHEN=seq=5
       - FAILED_WHEN=seq=20
       - KILL_WHEN_FAILED=false
-#      - DEBUG=true
+#      - DEBUG=ping
 #      - CHECK_DEPENDENCIES_INTERVAL=20
     volumes:
       - "/proc:/writable-proc"
