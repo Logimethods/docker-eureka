@@ -20,7 +20,7 @@ function call_eureka() {
     fi
 }
 
-function call_availablility() {
+function call_availability() {
   echo ^c | nc $@ ${EUREKA_AVAILABILITY_PORT} 2>&1
 }
 
@@ -206,7 +206,7 @@ initial_check() {
     URLS=$(echo $DEPENDS_ON | tr "," "\n")
     for URL in $URLS
     do
-      until [[ "$(call_availablility ${URL})" == *OK* ]]; do
+      until [[ "$(call_availability ${URL})" == *OK* ]]; do
         >&2 echo "Still WAITING for Dependencies ${URL}"
         if [[ "${URL}" == *_local* ]]; then
           setup_local_containers
@@ -268,7 +268,7 @@ check_dependencies(){
     URLS=$(echo $DEPENDS_ON | tr "," "\n")
     for URL in $URLS
     do
-      if ! [[ "$(call_availablility ${URL})" == *OK* ]]; then
+      if ! [[ "$(call_availability ${URL})" == *OK* ]]; then
         >&2 echo "Failed ${URL} Availability"
         kill_cmdpid $cmdpid
       fi
