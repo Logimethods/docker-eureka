@@ -46,6 +46,7 @@ services:
       - WAIT_FOR=www.docker.com:80,server_ping_local,server_ping_local1,server_ping
       - SETUP_LOCAL_CONTAINERS=true
       - KILL_WHEN_FAILED=false
+      - CONTINUOUS_CHECK=true
 #      - DEBUG=ping,trace
 #      - CHECK_DEPENDENCIES_INTERVAL=20
     volumes:

@@ -151,6 +151,7 @@ Content-Length: ${3}
 Connection: close
 
 ${2}
+^c
 EOL
   fi
 }
@@ -317,8 +318,8 @@ infinite_setup_check(){
     do
       setup_local_containers
       sleep $interval
-      if [ -n "${DEPENDS_ON}" ] || [ -n "${WAIT_FOR}" ]; then
-        check_dependencies $1 &
+      if [ "$CONTINUOUS_CHECK" == "true" ] ; then
+        check_dependencies $1
       fi
     done
   fi
@@ -383,6 +384,7 @@ EUREKA_URL_INTERNAL=${EUREKA_URL}
 : ${EUREKA_AVAILABILITY_PORT:=6868}
 : ${CHECK_DEPENDENCIES_INTERVAL:=2}
 : ${CHECK_KILL_DELAY:=5}
+: ${CONTINUOUS_CHECK:=false}
 
 # Interval between checks if the process is still alive.
 declare -i interval=CHECK_DEPENDENCIES_INTERVAL
