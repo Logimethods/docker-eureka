@@ -14,8 +14,8 @@ COPY entrypoint_insert.sh /entrypoint_insert.sh
 COPY entrypoint_finalize.sh /entrypoint_finalize.sh
 COPY entrypoint_prepare.sh /entrypoint_prepare.sh
 
-EXPOSE 6868
-ENV EUREKA_AVAILABILITY_PORT=6868
+# EXPOSE 6868
+# ENV EUREKA_AVAILABILITY_PORT=6868
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ping eureka

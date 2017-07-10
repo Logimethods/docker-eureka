@@ -21,7 +21,7 @@ function call_eureka() {
 }
 
 function call_availability() {
-  echo ^c | nc $@ ${EUREKA_AVAILABILITY_PORT} 2>&1
+  echo ^c | nc $1 ${EUREKA_AVAILABILITY_PORT} 2>&1
 }
 
 add_dns_entry() {
@@ -206,8 +206,21 @@ initial_check() {
     URLS=$(echo $DEPENDS_ON | tr "," "\n")
     for URL in $URLS
     do
+      if [[ $DEBUG = *availability* ]]; then
+        echo "\$(call_availability ${URL}) = $(call_availability ${URL})"
+      fi
       until [[ "$(call_availability ${URL})" == *OK* ]]; do
         >&2 echo "Still WAITING for Dependencies ${URL}"
+        if [[ $DEBUG = *availability* ]]; then
+          echo "\$(call_availability ${URL}) = $(call_availability ${URL})"
+          echo "---------------"
+          echo "nc ${URL} ${EUREKA_AVAILABILITY_PORT}"
+          echo "---------------"
+          echo ^c | nc ${URL} ${EUREKA_AVAILABILITY_PORT}
+          echo "---------------"
+          echo ^c | nc ${URL} ${EUREKA_AVAILABILITY_PORT} 2>&1
+          echo "---------------"
+        fi
         if [[ "${URL}" == *_local* ]]; then
           setup_local_containers
         fi
@@ -367,6 +380,7 @@ EUREKA_URL_INTERNAL=${EUREKA_URL}
 ### CHECK DEPENDENCIES ###
 # https://github.com/moby/moby/issues/31333#issuecomment-303250242
 
+: ${EUREKA_AVAILABILITY_PORT:=6868}
 : ${CHECK_DEPENDENCIES_INTERVAL:=2}
 : ${CHECK_KILL_DELAY:=5}
 
