@@ -1,7 +1,12 @@
 #!/bin/bash
-set -e
+if [ -n "${DEBUG}" ]; then
+  echo "DEBUG MODE, no exit on exception"
+else
+  set -e
+fi
 
 source /eureka_utils.sh
+source /eureka_utils_extended.sh
 
 include /entrypoint_insert.sh
 
@@ -14,5 +19,4 @@ include /entrypoint_insert.sh
   infinite_monitor $cmdpid ;
   include /entrypoint_prepare.sh ;
   enable_ping &
-  setup_availability
   exec "$@" 2>&1 )

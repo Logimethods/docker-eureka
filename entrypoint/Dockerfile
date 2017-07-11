@@ -7,5 +7,5 @@ RUN apk --no-cache add \
 EXPOSE 6868
 ENV EUREKA_AVAILABILITY_PORT=6868
 
-COPY entrypoint.sh eureka_utils.sh /
+COPY *.sh /
 ENTRYPOINT ["/entrypoint.sh"]

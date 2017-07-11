@@ -12,7 +12,7 @@ include () {
 ### PROVIDE LOCAL URLS ###
 # An alternative to https://github.com/docker/swarm/issues/1106
 
-function call_eureka() {
+function __call_eureka() {
     if hash curl 2>/dev/null; then
         echo $(curl -s "http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}$@")
     else
@@ -20,18 +20,45 @@ function call_eureka() {
     fi
 }
 
-function call_availability() {
-  echo ^c | nc $1 ${EUREKA_AVAILABILITY_PORT} 2>&1
-}
-
-add_dns_entry() {
-  target=$2
+__add_dns_entry() {
   host=$1
+  target=$2
+
+  if [[ $DEBUG = *dns* ]]; then
+    echo "O ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    cat ~/hosts.new
+    echo "1 ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    echo "$host $target"
+    echo "2 ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+  fi
+
   # https://stackoverflow.com/questions/24991136/docker-build-could-not-resolve-archive-ubuntu-com-apt-get-fails-to-install-a
-  ip=$(nslookup ${target} 2>/dev/null | tail -n1 | awk '{ print $3 }')
+  ##ip=$(nslookup ${target} 2>/dev/null | tail -n1 | awk '{ print $3 }')
+
+  # > nslookup ${target}
+  # nslookupServer:		127.0.0.11
+  # nslookupAddress:	127.0.0.11#53
+  # nslookup
+  # nslookupNon-authoritative answer:
+  # nslookupName:	server_ping
+  # nslookupAddress: 10.0.0.2
+  # nslookup
+  ip=$(nslookup ${target} 2>/dev/null | grep "." | tail -n1 | awk 'NF{ print $NF }')
+
   # http://jasani.org/2014/11/19/docker-now-supports-adding-host-mappings/
   sed -i "/${host}\$/d" ~/hosts.new
   echo "$ip $host" >> ~/hosts.new
+
+  if [[ $DEBUG = *dns* ]]; then
+    echo "A ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    echo "nslookup ${target} ="
+    echo "$(nslookup ${target})"
+    echo "B ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    echo "$ip $host"
+    echo "C ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    cat ~/hosts.new
+    echo "D ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+  fi
 }
 
 setup_local_containers() {
@@ -88,7 +115,8 @@ setup_local_containers() {
 desable_ping() {
   if [[ $DEBUG = *ping* ]]; then echo "desable_ping asked" ; fi
 
-  write_availability_file 503 "Service Unavailable" 19
+#  write_availability_file 503 "Service Unavailable" 19
+  unset_available
 
   if [ -e /writable-proc/sys/net/ipv4/icmp_echo_ignore_all ]; then
     echo "1" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
@@ -100,7 +128,8 @@ desable_ping() {
 enable_ping() {
   if [[ $DEBUG = *ping* ]]; then echo "enable_ping asked"; fi
 
-  write_availability_file 200 "OK" 2
+#  write_availability_file 200 "OK" 2
+  set_available
 
   if [ -e /writable-proc/sys/net/ipv4/icmp_echo_ignore_all ]; then
     echo "0" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
@@ -142,24 +171,24 @@ kill_cmdpid () {
 
 #### AVAILABILITY ###
 
-write_availability_file() {
+set_available() {
   if [ "$AVAILABILITY_ALLOWED" != "false" ]; then
-    cat >/eureka_availability.txt <<EOL
-HTTP/1.1 ${1} ${2}
-Content-Type: text/plain
-Content-Length: ${3}
-Connection: close
-
-${2}
-^c
-EOL
+#    (while true; do cat /eureka_availability.txt | busybox_nc -l -p 6868 >/dev/null; done) &
+#    ( while true; do echo "^C" | netcat -lzk -q 1 -p "${EUREKA_AVAILABILITY_PORT}" ; done ) &
+    ( while true; do echo "^C" | answer_availability ; done ) &
+    export available_pid=$!
   fi
 }
 
-setup_availability() {
-  if [ "$AVAILABILITY_ALLOWED" != "false" ]; then
-    (while true; do cat /eureka_availability.txt | nc -l -p 6868 >/dev/null; done) &
+unset_available() {
+  if [ -n "${available_pid}" ]; then
+    kill -9 ${available_pid}
+    export available_pid=0
   fi
+}
+
+function call_availability() {
+  netcat -z -q 2 $1 ${EUREKA_AVAILABILITY_PORT}
 }
 
 #### Initial Checks ####
@@ -208,19 +237,12 @@ initial_check() {
     for URL in $URLS
     do
       if [[ $DEBUG = *availability* ]]; then
-        echo "\$(call_availability ${URL}) = $(call_availability ${URL})"
+        echo "\$(call_availability ${URL}) = $(call_availability ${URL} 2>&1 ; echo $?)"
       fi
-      until [[ "$(call_availability ${URL})" == *OK* ]]; do
+      until call_availability ${URL}; do
         >&2 echo "Still WAITING for Dependencies ${URL}"
         if [[ $DEBUG = *availability* ]]; then
-          echo "\$(call_availability ${URL}) = $(call_availability ${URL})"
-          echo "---------------"
-          echo "nc ${URL} ${EUREKA_AVAILABILITY_PORT}"
-          echo "---------------"
-          echo ^c | nc ${URL} ${EUREKA_AVAILABILITY_PORT}
-          echo "---------------"
-          echo ^c | nc ${URL} ${EUREKA_AVAILABILITY_PORT} 2>&1
-          echo "---------------"
+          echo "\$(call_availability ${URL}) = $(call_availability ${URL} 2>&1 ; echo $?)"
         fi
         if [[ "${URL}" == *_local* ]]; then
           setup_local_containers
@@ -239,7 +261,8 @@ initial_check() {
       if [[ $URL == *":"* ]]; then # url + port
         HOST=$(printf "%s\n" "$URL"| cut -d : -f 1)
         PORT=$(printf "%s\n" "$URL"| cut -d : -f 2)
-        until nc -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ; [ $result -eq 0 ] ; do
+        # TODO Simplify
+        until netcat -vz -q 2 -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ; [ $result -eq 0 ] ; do
           >&2 echo "Still WAITING for URL $HOST:$PORT"
           if [[ "${HOST}" == *_local* ]]; then
             setup_local_containers
@@ -282,7 +305,7 @@ check_dependencies(){
     URLS=$(echo $DEPENDS_ON | tr "," "\n")
     for URL in $URLS
     do
-      if ! [[ "$(call_availability ${URL})" == *OK* ]]; then
+      if ! call_availability ${URL}; then
         >&2 echo "Failed ${URL} Availability"
         kill_cmdpid $cmdpid
       fi
@@ -297,7 +320,8 @@ check_dependencies(){
       if [[ $URL == *":"* ]]; then # url + port
         HOST=$(printf "%s\n" "$URL"| cut -d : -f 1)
         PORT=$(printf "%s\n" "$URL"| cut -d : -f 2)
-        nc -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ;
+        # TODO Simplify
+        netcat -z -q 2 "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ;
         if [ $result -ne 0 ] ; then
           >&2 echo "Failed Check URL ${URL}"
           if [ "$KILL_WHEN_FAILED" = "true" ]; then
@@ -405,3 +429,7 @@ if [ -n "${READY_WHEN}" ]; then
 else
   declare ready=$READINESS
 fi
+
+#### Commands Setup & Check ####
+
+## TODO : Check the existence of all required commands

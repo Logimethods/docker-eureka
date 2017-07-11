@@ -37,9 +37,9 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock"
 
   ### docker run --rm -it --network ${network} --name ping -v /proc:/writable-proc -e DEPENDS_ON=eureka,ping0
-  ### -e WAIT_FOR=www.docker.com:80,eureka_local1,ping0 -e SETUP_LOCAL_CONTAINERS=true ping_exp ping eureka_local
+  ### -e WAIT_FOR=www.docker.com:80,eureka_local1,ping0 -e SETUP_LOCAL_CONTAINERS=true ping_ubuntu_exp ping eureka_local
   client_ping:
-    image: ping_exp
+    image: ping_ubuntu_exp
     restart: "no"
     environment:
       - DEPENDS_ON=server_ping,server_ping_local
@@ -47,22 +47,23 @@ services:
       - SETUP_LOCAL_CONTAINERS=true
       - KILL_WHEN_FAILED=false
       - CONTINUOUS_CHECK=true
-#      - DEBUG=ping,trace
+#      - DEBUG=dns
+#      - DEBUG=availability,trace
 #      - CHECK_DEPENDENCIES_INTERVAL=20
     volumes:
       - "/proc:/writable-proc"
     command: ping eureka_local
 
   ### docker run --rm -it --network ${network} --name ping0 --sysctl net.ipv4.icmp_echo_ignore_all=1 -v /proc:/writable-proc
-  ### -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true ping_exp ping www.docker.com
+  ### -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true ping_ubuntu_exp ping www.docker.com
   server_ping:
-    image: ping_exp
+    image: ping_ubuntu_exp
     restart: "no"
     environment:
       - READY_WHEN=seq=5
-      - FAILED_WHEN=seq=20
+##      - FAILED_WHEN=seq=20
       - KILL_WHEN_FAILED=false
-#      - DEBUG=ping
+#      - DEBUG=ping,availability
 #      - CHECK_DEPENDENCIES_INTERVAL=20
     volumes:
       - "/proc:/writable-proc"

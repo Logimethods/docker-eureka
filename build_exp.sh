@@ -11,3 +11,7 @@ popd
 pushd ping_exp
 docker build -t ping_exp .
 popd
+
+pushd ping_ubuntu_exp
+docker build -t ping_ubuntu_exp .
+popd

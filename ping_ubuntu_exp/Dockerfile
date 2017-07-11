@@ -2,14 +2,14 @@
 # https://github.com/Logimethods/docker-eureka
 FROM entrypoint_exp as entrypoint
 
-FROM alpine:3.6
+FROM ubuntu
 # https://stedolan.github.io/jq/
-RUN apk --no-cache add \
-  jq bash netcat-openbsd
+RUN apt-get update && apt-get install -y \
+  jq bash netcat curl iputils-ping dnsutils
 
 COPY --from=entrypoint eureka_utils.sh /eureka_utils.sh
 COPY --from=entrypoint entrypoint.sh /entrypoint.sh
-COPY --from=entrypoint eureka_utils_alpine.sh /eureka_utils_extended.sh
+COPY --from=entrypoint eureka_utils_ubuntu.sh /eureka_utils_extended.sh
 
 # OPTIONAL
 COPY entrypoint_insert.sh /entrypoint_insert.sh
