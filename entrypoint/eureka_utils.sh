@@ -34,11 +34,11 @@ add_dns_entry() {
   target=$2
 
   if [[ $DEBUG = *dns* ]]; then
-    echo "O ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    echo "${EUREKA_PROMPT}O ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     cat ~/hosts.new
-    echo "1 ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    echo "$host $target"
-    echo "2 ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    echo "${EUREKA_PROMPT}1 ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    echo "${EUREKA_PROMPT}$host $target"
+    echo "${EUREKA_PROMPT}2 ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
   fi
 
   # https://stackoverflow.com/questions/24991136/docker-build-could-not-resolve-archive-ubuntu-com-apt-get-fails-to-install-a
@@ -51,14 +51,14 @@ add_dns_entry() {
   echo "$ip $host" >> ~/hosts.new
 
   if [[ $DEBUG = *dns* ]]; then
-    echo "A ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    echo "nslookup ${target} ="
-    echo "$lookup"
-    echo "B ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    echo "$ip $host"
-    echo "C ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    echo "${EUREKA_PROMPT}A ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    echo "${EUREKA_PROMPT}nslookup ${target} ="
+    echo "${EUREKA_PROMPT}$lookup"
+    echo "${EUREKA_PROMPT}B ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    echo "${EUREKA_PROMPT}$ip $host"
+    echo "${EUREKA_PROMPT}C ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     cat ~/hosts.new
-    echo "D ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    echo "${EUREKA_PROMPT}D ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
   fi
 }
 
@@ -74,7 +74,7 @@ setup_local_containers() {
     fi
 
     if [[ $DEBUG = *services* ]]; then
-      echo "SERVICES: $SERVICES"
+      echo "${EUREKA_PROMPT}SERVICES= $SERVICES"
     fi
 
     # https://stedolan.github.io/jq/
@@ -98,10 +98,10 @@ setup_local_containers() {
     echo "$(cat ~/hosts.new)" > /etc/hosts
 
     if [[ $DEBUG = *trace* ]]; then
-      echo $EUREKA_URL_INTERNAL:$EUREKA_PORT
+      echo "${EUREKA_PROMPT}$EUREKA_URL_INTERNAL:$EUREKA_PORT"
       env | grep -v _local | sort
       env | grep _local | sort
-      echo "---------"
+      echo "${EUREKA_PROMPT}---------"
       cat /etc/hosts
     fi
   fi
@@ -114,7 +114,7 @@ setup_local_containers() {
 # https://stackoverflow.com/questions/26050899/how-to-mount-host-volumes-into-docker-containers-in-dockerfile-during-build
 # docker run ... -v /proc:/writable-proc ...
 desable_ping() {
-  if [[ $DEBUG = *ping* ]]; then echo "desable_ping asked" ; fi
+  if [[ $DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}desable_ping asked" ; fi
 
 #  write_availability_file 503 "Service Unavailable" 19
   unset_available
@@ -122,12 +122,12 @@ desable_ping() {
   if [ -e /writable-proc/sys/net/ipv4/icmp_echo_ignore_all ]; then
     echo "1" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
   else
-    echo "desable_ping not allowed"
+    echo "${EUREKA_PROMPT}desable_ping not allowed"
   fi
 }
 
 enable_ping() {
-  if [[ $DEBUG = *ping* ]]; then echo "enable_ping asked"; fi
+  if [[ $DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}enable_ping asked"; fi
 
 #  write_availability_file 200 "OK" 2
   set_available
@@ -144,12 +144,12 @@ safe_ping() {
   else
     if [[ $1 =~ _local[0-9]*$ ]]; then # The urls ending with _local[0-9]* are not known by Eureka...
       local url="${!1}" # https://stackoverflow.com/questions/14049057/bash-expand-variable-in-a-variable
-      if [[ $DEBUG = *ping* ]]; then echo "$1 resolved as ${url}" ; fi
+      if [[ $DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}$1 resolved as ${url}" ; fi
     else
       local url="$1"
-      if [[ $DEBUG = *ping* ]]; then echo "$1 applied to ${url}" ; fi
+      if [[ $DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}$1 applied to ${url}" ; fi
     fi
-    if [[ $DEBUG = *ping* ]]; then echo "\$(call_eureka /ping/$url) = $(call_eureka /ping/$url)"; fi
+    if [[ $DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}\$(call_eureka /ping/$url) = $(call_eureka /ping/$url)"; fi
     test $(call_eureka /ping/$url) == "OK"
     return $?
   fi
@@ -208,13 +208,13 @@ initial_check() {
     declare -i timeout=CHECK_TIMEOUT
     (
         for ((t = timeout; t > 0; t -= interval)); do
-            echo "$t Second(s) Remaining Before Timeout"
+            echo "${EUREKA_PROMPT}$t Second(s) Remaining Before Timeout"
             sleep $interval
             # kill -0 pid   Exit code indicates if a signal may be sent to $pid process.
             kill -0 $$ || exit 0
         done
 
-        echo "Timeout. Will EXIT"
+        echo "${EUREKA_PROMPT}Timeout. Will EXIT"
         # Be nice, post SIGTERM first.
         # The 'exit 0' below will be executed if any preceeding command fails.
         kill -s SIGTERM $cmdpid && kill -0 $cmdpid || exit 0
@@ -230,25 +230,25 @@ initial_check() {
 
   # https://docs.docker.com/compose/startup-order/
   if [ -n "${DEPENDS_ON_SERVICES}" ]; then
-    >&2 echo "Checking SERVICE DEPENDENCIES ${DEPENDS_ON_SERVICES}"
+    >&2 echo "${EUREKA_PROMPT}Checking SERVICE DEPENDENCIES ${DEPENDS_ON_SERVICES}"
     until [ "$(call_eureka /dependencies/${DEPENDS_ON_SERVICES})" == "OK" ]; do
-      >&2 echo "Still WAITING for Service Dependencies ${DEPENDS_ON_SERVICES}"
+      >&2 echo "${EUREKA_PROMPT}Still WAITING for Service Dependencies ${DEPENDS_ON_SERVICES}"
       sleep $interval
     done
   fi
 
   if [ -n "${DEPENDS_ON}" ]; then
-    >&2 echo "Checking DEPENDENCIES ${DEPENDS_ON}"
+    >&2 echo "${EUREKA_PROMPT}Checking DEPENDENCIES ${DEPENDS_ON}"
     URLS=$(echo $DEPENDS_ON | tr "," "\n")
     for URL in $URLS
     do
       if [[ $DEBUG = *availability* ]]; then
-        echo "\$(call_availability ${URL}) = $(call_availability ${URL} 2>&1 ; echo $?)"
+        echo "${EUREKA_PROMPT}\$(call_availability ${URL}) = $(call_availability ${URL} 2>&1 ; echo $?)"
       fi
       until call_availability ${URL}; do
-        >&2 echo "Still WAITING for Dependencies ${URL}"
+        >&2 echo "${EUREKA_PROMPT}Still WAITING for Dependencies ${URL}"
         if [[ $DEBUG = *availability* ]]; then
-          echo "\$(call_availability ${URL}) = $(call_availability ${URL} 2>&1 ; echo $?)"
+          echo "${EUREKA_PROMPT}\$(call_availability ${URL}) = $(call_availability ${URL} 2>&1 ; echo $?)"
         fi
         if [[ "${URL}" == *_local* ]]; then
           setup_local_containers
@@ -269,7 +269,7 @@ initial_check() {
         PORT=$(printf "%s\n" "$URL"| cut -d : -f 2)
         # TODO Simplify
         until netcat -vz -q 2 -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ; [ $result -eq 0 ] ; do
-          >&2 echo "Still WAITING for URL $HOST:$PORT"
+          >&2 echo "${EUREKA_PROMPT}Still WAITING for URL $HOST:$PORT"
           if [[ "${HOST}" == *_local* ]]; then
             setup_local_containers
           fi
@@ -289,7 +289,7 @@ initial_check() {
 
   # Kill the CHECK_TIMEOUT loop if still alive
   if [ -n "${CHECK_TIMEOUT}" ]; then
-    echo "KILL KILL ! $timeout_pid / $cmdpid"
+    echo "${EUREKA_PROMPT}KILL KILL! $timeout_pid / $cmdpid"
     kill $timeout_pid
   fi
 }
@@ -302,7 +302,7 @@ check_dependencies(){
   if [ -n "${DEPENDS_ON_SERVICES}" ]; then
     dependencies_checked=$(call_eureka /dependencies/${DEPENDS_ON_SERVICES})
     if [ "$dependencies_checked" != "OK" ]; then
-      >&2 echo "Failed Check Services Dependencies ${DEPENDS_ON_SERVICES}"
+      >&2 echo "${EUREKA_PROMPT}Failed Check Services Dependencies ${DEPENDS_ON_SERVICES}"
       kill_cmdpid $cmdpid
     fi
   fi
@@ -312,7 +312,7 @@ check_dependencies(){
     for URL in $URLS
     do
       if ! call_availability ${URL}; then
-        >&2 echo "Failed ${URL} Availability"
+        >&2 echo "${EUREKA_PROMPT}Failed ${URL} Availability"
         kill_cmdpid $cmdpid
       fi
     done
@@ -329,13 +329,13 @@ check_dependencies(){
         # TODO Simplify
         netcat -z -q 2 "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ;
         if [ $result -ne 0 ] ; then
-          >&2 echo "Failed Check URL ${URL}"
+          >&2 echo "${EUREKA_PROMPT}Failed Check URL ${URL}"
           if [ "$KILL_WHEN_FAILED" = "true" ]; then
             kill_cmdpid $cmdpid
           fi
         fi
       elif ! safe_ping $URL ; then # ping url
-        >&2 echo "Failed ${URL} Ping"
+        >&2 echo "${EUREKA_PROMPT}Failed ${URL} Ping"
         kill_cmdpid $cmdpid
       fi
     done
@@ -357,7 +357,7 @@ infinite_setup_check(){
 
 infinite_monitor(){
   if [[ $DEBUG = *monitor* ]]; then
-    >&2 echo "infinite_monitor ASKED";
+    >&2 echo "${EUREKA_PROMPT}infinite_monitor ASKED";
     env
   fi
 
@@ -371,7 +371,7 @@ infinite_monitor(){
     )
 
     if [[ $DEBUG = *monitor* ]]; then
-      >&2 echo "infinite_monitor STARTED";
+      >&2 echo "${EUREKA_PROMPT}infinite_monitor STARTED";
     fi
   fi
 }
@@ -380,23 +380,23 @@ monitor_output() {
   declare cmdpid=$2
 
   if [[ $DEBUG = *tracemonitor* ]]; then
-    >&2 echo "Monitor: ready=${ready}, input='${1}'";
+    >&2 echo "${EUREKA_PROMPT}Monitor: ready=${ready}, input='${1}'";
   fi
 
   if [ "$ready" = false ] && [[ $1 == *"${READY_WHEN}"* ]]; then
     # TODO Only once!!!
-    >&2 echo "EUREKA: FINALIZE!"
+    >&2 echo "${EUREKA_PROMPT}FINALIZE!"
 
     ## Optional finalizing
     include entrypoint_finalize.sh
 
-    >&2 echo "EUREKA: READY!"
+    >&2 echo "${EUREKA_PROMPT}READY!"
 
     ready="$READINESS"
     enable_ping &
   fi
   if [ "$ready" = true ] && [[ $1 == *"${FAILED_WHEN}"* ]]; then
-    >&2 echo "EUREKA: FAILED!"
+    >&2 echo "${EUREKA_PROMPT}FAILED!"
     kill_cmdpid $cmdpid
   fi
 }
@@ -407,6 +407,7 @@ monitor_output() {
 EUREKA_URL_INTERNAL=${EUREKA_URL}
 : ${EUREKA_URL_INTERNAL:=eureka}
 : ${EUREKA_PORT:=5000}
+: ${EUREKA_PROMPT:=EUReKA: }
 
 ### CHECK DEPENDENCIES ###
 # https://github.com/moby/moby/issues/31333#issuecomment-303250242
