@@ -4,10 +4,10 @@ FROM entrypoint_exp as entrypoint
 
 ### MAIN FROM ###
 
-FROM ubuntu:17.04
+FROM alpine:3.6
 # https://stedolan.github.io/jq/
-RUN apt-get update && apt-get install -y \
-  jq bash netcat-openbsd curl iputils-ping dnsutils
+RUN apk --no-cache add \
+  jq bash netcat-openbsd
 
 COPY --from=entrypoint eureka_utils.sh /eureka_utils.sh
 COPY --from=entrypoint entrypoint.sh /entrypoint.sh

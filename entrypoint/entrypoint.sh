@@ -6,7 +6,7 @@ else
 fi
 
 source /eureka_utils.sh
-source /eureka_utils_extended.sh
+# source /eureka_utils_extended.sh
 
 include /entrypoint_insert.sh
 

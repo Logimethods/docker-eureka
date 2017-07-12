@@ -1,5 +1,14 @@
 #!/bin/bash
 
+#### Commands Setup & Check ####
+
+## TODO : Check the existence of all required commands
+# nslookup
+# wget or curl
+# jq
+# netcat / nc
+
+
 # https://stackoverflow.com/questions/10735574/include-source-script-if-it-exists-in-bash
 include () {
     #  [ -f "$1" ] && source "$1" WILL EXIT...
@@ -12,7 +21,7 @@ include () {
 ### PROVIDE LOCAL URLS ###
 # An alternative to https://github.com/docker/swarm/issues/1106
 
-function __call_eureka() {
+function call_eureka() {
     if hash curl 2>/dev/null; then
         echo $(curl -s "http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}$@")
     else
@@ -20,7 +29,7 @@ function __call_eureka() {
     fi
 }
 
-__add_dns_entry() {
+add_dns_entry() {
   host=$1
   target=$2
 
@@ -33,17 +42,9 @@ __add_dns_entry() {
   fi
 
   # https://stackoverflow.com/questions/24991136/docker-build-could-not-resolve-archive-ubuntu-com-apt-get-fails-to-install-a
-  ##ip=$(nslookup ${target} 2>/dev/null | tail -n1 | awk '{ print $3 }')
 
-  # > nslookup ${target}
-  # nslookupServer:		127.0.0.11
-  # nslookupAddress:	127.0.0.11#53
-  # nslookup
-  # nslookupNon-authoritative answer:
-  # nslookupName:	server_ping
-  # nslookupAddress: 10.0.0.2
-  # nslookup
-  ip=$(nslookup ${target} 2>/dev/null | grep "." | tail -n1 | awk 'NF{ print $NF }')
+  local lookup=$(nslookup ${target} 2>/dev/null)
+  local ip=$(echo $lookup | grep "." | tail -n1 | egrep -o '([0-9]{1,3}\.){3}[0-9]{1,3}')
 
   # http://jasani.org/2014/11/19/docker-now-supports-adding-host-mappings/
   sed -i "/${host}\$/d" ~/hosts.new
@@ -52,7 +53,7 @@ __add_dns_entry() {
   if [[ $DEBUG = *dns* ]]; then
     echo "A ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     echo "nslookup ${target} ="
-    echo "$(nslookup ${target})"
+    echo "$lookup"
     echo "B ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     echo "$ip $host"
     echo "C ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -189,6 +190,11 @@ unset_available() {
 
 function call_availability() {
   netcat -z -q 2 $1 ${EUREKA_AVAILABILITY_PORT}
+}
+
+if ! hash netcat  2>/dev/null && [[ ! -f /usr/bin/netcat ]]; then ln -s $(which nc) /usr/bin/netcat; fi
+answer_availability() {
+  netcat -lk -q 1 -p "${EUREKA_AVAILABILITY_PORT}"
 }
 
 #### Initial Checks ####
@@ -429,7 +435,3 @@ if [ -n "${READY_WHEN}" ]; then
 else
   declare ready=$READINESS
 fi
-
-#### Commands Setup & Check ####
-
-## TODO : Check the existence of all required commands
