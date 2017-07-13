@@ -113,24 +113,29 @@ setup_local_containers() {
 # https://stackoverflow.com/questions/26177059/refresh-net-core-somaxcomm-or-any-sysctl-property-for-docker-containers/26197875#26197875
 # https://stackoverflow.com/questions/26050899/how-to-mount-host-volumes-into-docker-containers-in-dockerfile-during-build
 # docker run ... -v /proc:/writable-proc ...
-desable_ping() {
-  if [[ $DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}desable_ping asked" ; fi
+desable_availability() {
+  if [[ $DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}desable_availability asked" ; fi
 
 #  write_availability_file 503 "Service Unavailable" 19
-  unset_available
+  if [ -n "${available_pid}" ]; then
+    kill -9 ${available_pid}
+    export available_pid=0
+  fi
 
   if [ -e /writable-proc/sys/net/ipv4/icmp_echo_ignore_all ]; then
     echo "1" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
   else
-    echo "${EUREKA_PROMPT}desable_ping not allowed"
+    echo "${EUREKA_PROMPT}desable ping not allowed"
   fi
 }
 
-enable_ping() {
-  if [[ $DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}enable_ping asked"; fi
+enable_availability() {
+  if [[ $DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}enable_availability asked"; fi
 
-#  write_availability_file 200 "OK" 2
-  set_available
+  if [ "$AVAILABILITY_ALLOWED" != "false" ]; then
+    ( while true; do echo "^C" | answer_availability ; done ) &
+    export available_pid=$!
+  fi
 
   if [ -e /writable-proc/sys/net/ipv4/icmp_echo_ignore_all ]; then
     echo "0" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
@@ -166,27 +171,11 @@ kill_cmdpid () {
     kill -s SIGKILL $cmdpid
   else
     ready=false
-    desable_ping &
+    desable_availability &
   fi
 }
 
 #### AVAILABILITY ###
-
-set_available() {
-  if [ "$AVAILABILITY_ALLOWED" != "false" ]; then
-#    (while true; do cat /eureka_availability.txt | busybox_nc -l -p 6868 >/dev/null; done) &
-#    ( while true; do echo "^C" | netcat -lzk -q 1 -p "${EUREKA_AVAILABILITY_PORT}" ; done ) &
-    ( while true; do echo "^C" | answer_availability ; done ) &
-    export available_pid=$!
-  fi
-}
-
-unset_available() {
-  if [ -n "${available_pid}" ]; then
-    kill -9 ${available_pid}
-    export available_pid=0
-  fi
-}
 
 function call_availability() {
   netcat -z -q 2 $1 ${EUREKA_AVAILABILITY_PORT}
@@ -393,7 +382,7 @@ monitor_output() {
     >&2 echo "${EUREKA_PROMPT}READY!"
 
     ready="$READINESS"
-    enable_ping &
+    enable_availability &
   fi
   if [ "$ready" = true ] && [[ $1 == *"${FAILED_WHEN}"* ]]; then
     >&2 echo "${EUREKA_PROMPT}FAILED!"
@@ -432,7 +421,7 @@ fi
 
 if [ -n "${READY_WHEN}" ]; then
   declare ready=false
-  desable_ping
+  desable_availability
 else
   declare ready=$READINESS
 fi
