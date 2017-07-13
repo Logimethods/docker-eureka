@@ -1,10 +1,10 @@
-# docker-eureka
+# EUReKA (Dependencies Management & Direct Access to Containers)
 
 /!\ Work still in progress
 
 Provides a solution to [Proposal: Use Swarm place holders to supply target host and port to Docker run #1106](https://github.com/docker/swarm/issues/1106) & related issues, also to [Missing Depends_ON functionality during start process within docker-swarm #31333](https://github.com/moby/moby/issues/31333#issuecomment-303250242).
 
-## The Eureka Server
+## The EUReKA Server
 
 ### Start
 To run it:
