@@ -1,5 +1,7 @@
 # docker-eureka
 
+/!\ Work still in progress
+
 ## The Eureka Server
 
 Provides a solution to [Proposal: Use Swarm place holders to supply target host and port to Docker run #1106](https://github.com/docker/swarm/issues/1106) & related issues.
@@ -76,11 +78,15 @@ RUN head -n -1 /docker-entrypoint.sh > /merged_entrypoint.sh ; \
 docker stack deploy -c docker-compose.yml test
 ```
 
-## New features (?)
+# References to EUReKA
+
+* https://github.com/Logimethods/smart-meter/tree/multi-stage-build
+
+# New features (?)
 
 * https://docs.docker.com/engine/reference/builder/#healthcheck
 
-## EXPERIMENTAL & DEV REFERENCES
+# EXPERIMENTAL & DEV REFERENCES
 
 * https://stackoverflow.com/questions/26177059/refresh-net-core-somaxcomm-or-any-sysctl-property-for-docker-containers/26197875#26197875
 * https://stackoverflow.com/questions/26050899/how-to-mount-host-volumes-into-docker-containers-in-dockerfile-during-build
