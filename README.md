@@ -54,11 +54,17 @@ Makes the Container Unavailable when the provided string is catched on the log.
 
 _Note_: If `$KILL_WHEN_FAILED` is set to `true`, the Caontainer will then be killed.
 
+## Docker HEALTHCHECK
+To setup the [Docker Health Check](https://docs.docker.com/engine/reference/builder/#healthcheck) feature, you should add the following instruction to the Dockerfile:
+```
+HEALTHCHECK --interval=5s --timeout=1s --retries=1 CMD test -f /availability.lock
+```
+
 ## Usage
 
-_Note_, first build the Docker Images: 
+_Note_, first build the Docker Images:
 ```
-> ./build_exp.sh 
+> ./build_exp.sh
 ```
 
 ### `docker run` / `docker service`
@@ -99,8 +105,6 @@ docker stack deploy -c docker-compose.yml test
 * https://github.com/Logimethods/smart-meter/tree/multi-stage-build
 
 # New features (?)
-
-* https://docs.docker.com/engine/reference/builder/#healthcheck
 
 # EXPERIMENTAL & DEV REFERENCES
 

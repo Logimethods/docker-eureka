@@ -9,3 +9,5 @@ ENV EUREKA_AVAILABILITY_PORT=6868
 
 COPY *.sh /
 ENTRYPOINT ["/entrypoint.sh"]
+
+HEALTHCHECK --interval=5s --timeout=1s --retries=1 CMD test -f /availability.lock

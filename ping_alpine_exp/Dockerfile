@@ -20,5 +20,7 @@ COPY entrypoint_prepare.sh /entrypoint_prepare.sh
 # EXPOSE 6868
 # ENV EUREKA_AVAILABILITY_PORT=6868
 
+HEALTHCHECK --interval=5s --timeout=1s --retries=1 CMD test -f /availability.lock
+
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ping eureka

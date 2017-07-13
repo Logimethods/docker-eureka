@@ -127,6 +127,9 @@ desable_availability() {
   else
     echo "${EUREKA_PROMPT}desable ping not allowed"
   fi
+
+  rm -f /availability.lock
+  if [[ $DEBUG = *health* ]]; then echo "${EUREKA_PROMPT}desable_availability: $(cat /availability.lock)"; fi
 }
 
 enable_availability() {
@@ -140,6 +143,9 @@ enable_availability() {
   if [ -e /writable-proc/sys/net/ipv4/icmp_echo_ignore_all ]; then
     echo "0" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
   fi
+
+  echo "AVAILABLE" > /availability.lock
+  if [[ $DEBUG = *health* ]]; then echo "${EUREKA_PROMPT}enable_availability: $(cat /availability.lock)"; fi
 }
 
 safe_ping() {
