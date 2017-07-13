@@ -76,6 +76,10 @@ RUN head -n -1 /docker-entrypoint.sh > /merged_entrypoint.sh ; \
 docker stack deploy -c docker-compose.yml test
 ```
 
+## New features (?)
+
+* https://docs.docker.com/engine/reference/builder/#healthcheck
+
 ## EXPERIMENTAL & DEV REFERENCES
 
 * https://stackoverflow.com/questions/26177059/refresh-net-core-somaxcomm-or-any-sysctl-property-for-docker-containers/26197875#26197875
