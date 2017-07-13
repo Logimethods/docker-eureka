@@ -89,6 +89,11 @@ docker run --rm -it --network ${network} --name ping0 --mount type=bind,source=/
 docker stack deploy -c docker-compose.yml test
 ```
 
+## Setup of the Dockerfile
+* Alpine, see https://github.com/Logimethods/docker-eureka/blob/master/ping_alpine_exp/Dockerfile
+* Ubuntu, see https://github.com/Logimethods/docker-eureka/blob/master/ping_ubuntu_exp/Dockerfile
+* Debian, see https://github.com/Logimethods/docker-eureka/blob/master/ping_debian_exp/Dockerfile
+
 # References to EUReKA
 
 * https://github.com/Logimethods/smart-meter/tree/multi-stage-build
