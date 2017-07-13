@@ -2,9 +2,9 @@
 
 /!\ Work still in progress
 
-## The Eureka Server
+Provides a solution to [Proposal: Use Swarm place holders to supply target host and port to Docker run #1106](https://github.com/docker/swarm/issues/1106) & related issues, also to [Missing Depends_ON functionality during start process within docker-swarm #31333](https://github.com/moby/moby/issues/31333#issuecomment-303250242).
 
-Provides a solution to [Proposal: Use Swarm place holders to supply target host and port to Docker run #1106](https://github.com/docker/swarm/issues/1106) & related issues.
+## The Eureka Server
 
 ### Start
 To run it:
@@ -38,10 +38,32 @@ docker run --rm --network ${network} --name entrypoint --constraint=node.role!=m
 `xxx_url{n}` -> URL {n}
 
 ## DEPENDS_ON & WAIT_FOR
+### DEPENDS_ON
+Is especting the targeted Container to answer on port `${EUREKA_AVAILABILITY_PORT}` (by default `6868`).
 
-Provides a solution to [Missing Depends_ON functionality during start process within docker-swarm #31333](https://github.com/moby/moby/issues/31333#issuecomment-303250242).
+### WAIT_FOR
+Is especting the targeted Container to answer to the `ping` request.
 
-First, build the "ping" Image:
+## READY_WHEN & FAILED_WHEN
+### READY_WHEN
+Makes the Container Available when the provided string is catched on the log.
+
+_Tip_: to be able to desable the ping answer of a container, the `/proc:/writable-proc` volume has to be set.
+### FAILED_WHEN
+Makes the Container Unavailable when the provided string is catched on the log.
+
+_Note_: If `$KILL_WHEN_FAILED` is set to `true`, the Caontainer will then be killed.
+
+## Usage
+
+_Note_, first build the Docker Images: 
+```
+> ./build_exp.sh 
+```
+
+### `docker run` / `docker service`
+
+To build a "ping" Image:
 ```
 pushd ping
 docker build -t ping_container .
@@ -61,18 +83,7 @@ or, as a service
 docker run --rm -it --network ${network} --name ping0 --mount type=bind,source=/proc,destination=/writable-proc -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true ping_container ping www.docker.com
 ```
 
-## `entrypoint.sh` MERGING
-
-```
-COPY --from=entrypoint eureka_utils.sh /eureka_utils.sh
-COPY --from=entrypoint entrypoint.sh /entrypoint.sh
-RUN head -n -1 /docker-entrypoint.sh > /merged_entrypoint.sh ; \
-    tail -n +3  /entrypoint.sh >> /merged_entrypoint.sh \
-    chmod +x /merged_entrypoint.sh
-## RUN cat /merged_entrypoint.sh
-```
-
-## Stack
+### `docker stack`
 
 ```
 docker stack deploy -c docker-compose.yml test
@@ -94,6 +105,17 @@ docker stack deploy -c docker-compose.yml test
 `-e CHECK_DEPENDENCIES_INTERVAL=5`
 ```
 docker run --rm -it --network ${network} logimethods/eureka:ping
+```
+
+## `entrypoint.sh` MERGING
+
+```
+COPY --from=entrypoint eureka_utils.sh /eureka_utils.sh
+COPY --from=entrypoint entrypoint.sh /entrypoint.sh
+RUN head -n -1 /docker-entrypoint.sh > /merged_entrypoint.sh ; \
+    tail -n +3  /entrypoint.sh >> /merged_entrypoint.sh \
+    chmod +x /merged_entrypoint.sh
+## RUN cat /merged_entrypoint.sh
 ```
 
 
