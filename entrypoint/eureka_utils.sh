@@ -28,7 +28,7 @@
 # nslookup
 # wget or curl
 # jq
-# netcat / nc
+# netcat / nc -h => Should not be "OpenBSD netcat (Debian patchlevel 4)", as founded in Alpine 3.5
 
 
 # https://stackoverflow.com/questions/10735574/include-source-script-if-it-exists-in-bash
@@ -206,11 +206,21 @@ kill_cmdpid () {
 #### AVAILABILITY ###
 
 function call_availability() {
+  if [[ $DEBUG = *netcat* ]]; then
+    echo "netcat -z -q 2 $1 ${EUREKA_AVAILABILITY_PORT}"
+  fi
   netcat -z -q 2 $1 ${EUREKA_AVAILABILITY_PORT}
 }
 
 if ! hash netcat  2>/dev/null && [[ ! -f /usr/bin/netcat ]]; then ln -s $(which nc) /usr/bin/netcat; fi
+if [[ $DEBUG = *netcat* ]]; then
+  echo "netcat -h"
+fi
+
 answer_availability() {
+  if [[ $DEBUG = *netcat* ]]; then
+    echo "netcat -lk -q 1 -p ${EUREKA_AVAILABILITY_PORT}"
+  fi
   netcat -lk -q 1 -p "${EUREKA_AVAILABILITY_PORT}"
 }
 
