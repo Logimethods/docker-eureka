@@ -214,7 +214,7 @@ function call_availability() {
 
 if ! hash netcat  2>/dev/null && [[ ! -f /usr/bin/netcat ]]; then ln -s $(which nc) /usr/bin/netcat; fi
 if [[ $DEBUG = *netcat* ]]; then
-  echo "netcat -h"
+  netcat -h
 fi
 
 answer_availability() {
