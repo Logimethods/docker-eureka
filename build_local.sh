@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 pushd eureka
 docker build -t logimethods/eureka-local .
 popd
