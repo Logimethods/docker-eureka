@@ -55,7 +55,7 @@ add_dns_entry() {
   host=$1
   target=$2
 
-  if [[ $DEBUG = *dns* ]]; then
+  if [[ $EUREKA_DEBUG = *dns* ]]; then
     echo "${EUREKA_PROMPT}O ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     cat ~/hosts.new
     echo "${EUREKA_PROMPT}1 ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -72,7 +72,7 @@ add_dns_entry() {
   sed -i "/${host}\$/d" ~/hosts.new
   echo "$ip $host" >> ~/hosts.new
 
-  if [[ $DEBUG = *dns* ]]; then
+  if [[ $EUREKA_DEBUG = *dns* ]]; then
     echo "${EUREKA_PROMPT}A ~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     echo "${EUREKA_PROMPT}nslookup ${target} ="
     echo "${EUREKA_PROMPT}$lookup"
@@ -95,7 +95,7 @@ setup_local_containers() {
       SERVICES=$(call_eureka /services/node/${NODE_ID})
     fi
 
-    if [[ $DEBUG = *services* ]]; then
+    if [[ $EUREKA_DEBUG = *services* ]]; then
       echo "${EUREKA_PROMPT}SERVICES= $SERVICES"
     fi
 
@@ -119,7 +119,7 @@ setup_local_containers() {
     # cp -f ~/hosts.new /etc/hosts # cp: can't create '/etc/hosts': File exists
     echo "$(cat ~/hosts.new)" > /etc/hosts
 
-    if [[ $DEBUG = *trace* ]]; then
+    if [[ $EUREKA_DEBUG = *trace* ]]; then
       echo "${EUREKA_PROMPT}$EUREKA_URL_INTERNAL:$EUREKA_PORT"
       env | grep -v _local | sort
       env | grep _local | sort
@@ -136,7 +136,7 @@ setup_local_containers() {
 # https://stackoverflow.com/questions/26050899/how-to-mount-host-volumes-into-docker-containers-in-dockerfile-during-build
 # docker run ... -v /proc:/writable-proc ...
 desable_availability() {
-  if [[ $DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}desable_availability asked" ; fi
+  if [[ $EUREKA_DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}desable_availability asked" ; fi
 
 #  write_availability_file 503 "Service Unavailable" 19
   if [ -n "${available_pid}" ]; then
@@ -151,11 +151,11 @@ desable_availability() {
   fi
 
   rm -f /availability.lock
-  if [[ $DEBUG = *health* ]]; then echo "${EUREKA_PROMPT}desable_availability: $(cat /availability.lock)"; fi
+  if [[ $EUREKA_DEBUG = *health* ]]; then echo "${EUREKA_PROMPT}desable_availability: $(cat /availability.lock)"; fi
 }
 
 enable_availability() {
-  if [[ $DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}enable_availability asked"; fi
+  if [[ $EUREKA_DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}enable_availability asked"; fi
 
   if [ "$AVAILABILITY_ALLOWED" != "false" ]; then
     ( while true; do echo "^C" | answer_availability ; done ) &
@@ -167,7 +167,7 @@ enable_availability() {
   fi
 
   echo "AVAILABLE" > /availability.lock
-  if [[ $DEBUG = *health* ]]; then echo "${EUREKA_PROMPT}enable_availability: $(cat /availability.lock)"; fi
+  if [[ $EUREKA_DEBUG = *health* ]]; then echo "${EUREKA_PROMPT}enable_availability: $(cat /availability.lock)"; fi
 }
 
 safe_ping() {
@@ -177,12 +177,12 @@ safe_ping() {
   else
     if [[ $1 =~ _local[0-9]*$ ]]; then # The urls ending with _local[0-9]* are not known by Eureka...
       local url="${!1}" # https://stackoverflow.com/questions/14049057/bash-expand-variable-in-a-variable
-      if [[ $DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}$1 resolved as ${url}" ; fi
+      if [[ $EUREKA_DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}$1 resolved as ${url}" ; fi
     else
       local url="$1"
-      if [[ $DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}$1 applied to ${url}" ; fi
+      if [[ $EUREKA_DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}$1 applied to ${url}" ; fi
     fi
-    if [[ $DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}\$(call_eureka /ping/$url) = $(call_eureka /ping/$url)"; fi
+    if [[ $EUREKA_DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}\$(call_eureka /ping/$url) = $(call_eureka /ping/$url)"; fi
     test $(call_eureka /ping/$url) == "OK"
     return $?
   fi
@@ -206,19 +206,19 @@ kill_cmdpid () {
 #### AVAILABILITY ###
 
 function call_availability() {
-  if [[ $DEBUG = *netcat* ]]; then
+  if [[ $EUREKA_DEBUG = *netcat* ]]; then
     echo "netcat -z -q 2 $1 ${EUREKA_AVAILABILITY_PORT}"
   fi
   netcat -z -q 2 $1 ${EUREKA_AVAILABILITY_PORT}
 }
 
 if ! hash netcat  2>/dev/null && [[ ! -f /usr/bin/netcat ]]; then ln -s $(which nc) /usr/bin/netcat; fi
-if [[ $DEBUG = *netcat* ]]; then
+if [[ $EUREKA_DEBUG = *netcat* ]]; then
   netcat -h
 fi
 
 answer_availability() {
-  if [[ $DEBUG = *netcat* ]]; then
+  if [[ $EUREKA_DEBUG = *netcat* ]]; then
     echo "netcat -lk -q 1 -p ${EUREKA_AVAILABILITY_PORT}"
   fi
   netcat -lk -q 1 -p "${EUREKA_AVAILABILITY_PORT}"
@@ -269,12 +269,12 @@ initial_check() {
     URLS=$(echo $DEPENDS_ON | tr "," "\n")
     for URL in $URLS
     do
-      if [[ $DEBUG = *availability* ]]; then
+      if [[ $EUREKA_DEBUG = *availability* ]]; then
         echo "${EUREKA_PROMPT}\$(call_availability ${URL}) = $(call_availability ${URL} 2>&1 ; echo $?)"
       fi
       until call_availability ${URL}; do
         >&2 echo "${EUREKA_PROMPT}Still WAITING for Dependencies ${URL}"
-        if [[ $DEBUG = *availability* ]]; then
+        if [[ $EUREKA_DEBUG = *availability* ]]; then
           echo "${EUREKA_PROMPT}\$(call_availability ${URL}) = $(call_availability ${URL} 2>&1 ; echo $?)"
         fi
         if [[ "${URL}" == *_local* ]]; then
@@ -383,7 +383,7 @@ infinite_setup_check(){
 }
 
 infinite_monitor(){
-  if [[ $DEBUG = *monitor* ]]; then
+  if [[ $EUREKA_DEBUG = *monitor* ]]; then
     >&2 echo "${EUREKA_PROMPT}infinite_monitor ASKED";
     env
   fi
@@ -397,7 +397,7 @@ infinite_monitor(){
     done
     )
 
-    if [[ $DEBUG = *monitor* ]]; then
+    if [[ $EUREKA_DEBUG = *monitor* ]]; then
       >&2 echo "${EUREKA_PROMPT}infinite_monitor STARTED";
     fi
   fi
@@ -406,7 +406,7 @@ infinite_monitor(){
 monitor_output() {
   declare cmdpid=$2
 
-  if [[ $DEBUG = *tracemonitor* ]]; then
+  if [[ $EUREKA_DEBUG = *tracemonitor* ]]; then
     >&2 echo "${EUREKA_PROMPT}Monitor: ready=${ready}, input='${1}'";
   fi
 

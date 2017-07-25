@@ -51,8 +51,8 @@ services:
       - SETUP_LOCAL_CONTAINERS=true
       - KILL_WHEN_FAILED=${KILL_WHEN_FAILED:-true}
       - CONTINUOUS_CHECK=true
-      - DEBUG=yes
-#      - DEBUG=availability,trace,dns
+      - EUREKA_DEBUG=true
+#      - EUREKA_DEBUG=availability,trace,dns
 #      - CHECK_DEPENDENCIES_INTERVAL=20
     volumes:
       - "/proc:/writable-proc"
@@ -67,7 +67,7 @@ services:
       - READY_WHEN=seq=5
       - FAILED_WHEN=seq=30
       - KILL_WHEN_FAILED=${KILL_WHEN_FAILED:-true}
-      - DEBUG=yes
+      - EUREKA_DEBUG=true
 #      - CHECK_DEPENDENCIES_INTERVAL=20
     volumes:
       - "/proc:/writable-proc"
@@ -86,7 +86,7 @@ services:
       - SETUP_LOCAL_CONTAINERS=true
       - KILL_WHEN_FAILED=${KILL_WHEN_FAILED:-true}
       - CONTINUOUS_CHECK=true
-      - DEBUG=yes
+      - EUREKA_DEBUG=true
 #      - CHECK_DEPENDENCIES_INTERVAL=20
     volumes:
       - "/proc:/writable-proc"
@@ -101,7 +101,7 @@ services:
       - READY_WHEN=seq=5
       - FAILED_WHEN=seq=30
       - KILL_WHEN_FAILED=${KILL_WHEN_FAILED:-true}
-      - DEBUG=yes
+      - EUREKA_DEBUG=true
 #      - CHECK_DEPENDENCIES_INTERVAL=20
     volumes:
       - "/proc:/writable-proc"
@@ -120,7 +120,7 @@ services:
       - SETUP_LOCAL_CONTAINERS=true
       - KILL_WHEN_FAILED=${KILL_WHEN_FAILED:-true}
       - CONTINUOUS_CHECK=true
-      - DEBUG=yes
+      - EUREKA_DEBUG=true
 #      - CHECK_DEPENDENCIES_INTERVAL=20
     volumes:
       - "/proc:/writable-proc"
@@ -135,7 +135,7 @@ services:
       - READY_WHEN=seq=5
       - FAILED_WHEN=seq=30
       - KILL_WHEN_FAILED=${KILL_WHEN_FAILED:-true}
-      - DEBUG=yes
+      - EUREKA_DEBUG=true
 #      - CHECK_DEPENDENCIES_INTERVAL=20
     volumes:
       - "/proc:/writable-proc"

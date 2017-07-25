@@ -23,8 +23,8 @@
 ## SOFTWARE.
 
 # https://stackoverflow.com/questions/39162846/what-does-set-e-and-set-a-do-in-bash-what-are-other-options-that-i-can-use-wit
-if [ -n "${DEBUG}" ]; then
-  echo "DEBUG MODE, no exit on exception"
+if [ -n "${EUREKA_DEBUG}" ]; then
+  echo "EUREKA_DEBUG MODE, no exit on exception"
 else
   set -e
 fi
@@ -46,7 +46,7 @@ set -a
   enable_availability ;
   exec "$@" 2>&1 )
 
-if [ -n "${DEBUG}" ]; then
+if [ -n "${EUREKA_DEBUG}" ]; then
   echo "sleep infinity"
   while true; do sleep 10000; done
 fi
