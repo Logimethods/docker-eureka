@@ -287,7 +287,7 @@ initial_check() {
 
   # https://github.com/Eficode/wait-for
   if [ -n "${WAIT_FOR}" ]; then
-    >&2 echo "Checking URLS $WAIT_FOR"
+    >&2 echo "${EUREKA_PROMPT}Checking URLS $WAIT_FOR"
     URLS=$(echo $WAIT_FOR | tr "," "\n")
     for URL in $URLS
     do
