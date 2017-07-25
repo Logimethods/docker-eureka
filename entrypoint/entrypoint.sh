@@ -22,6 +22,7 @@
 ## OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ## SOFTWARE.
 
+# https://stackoverflow.com/questions/39162846/what-does-set-e-and-set-a-do-in-bash-what-are-other-options-that-i-can-use-wit
 if [ -n "${DEBUG}" ]; then
   echo "DEBUG MODE, no exit on exception"
 else
@@ -31,10 +32,11 @@ fi
 source /eureka_utils.sh
 # source /eureka_utils_extended.sh
 
-include /entrypoint_insert.sh
+set -a
 
 ### EXEC CMD ###
 ( cmdpid=$BASHPID ;
+  include /entrypoint_insert.sh ;
   desable_availability ;
   setup_local_containers ;
   initial_check $cmdpid ;
@@ -43,3 +45,8 @@ include /entrypoint_insert.sh
   include /entrypoint_prepare.sh ;
   enable_availability ;
   exec "$@" 2>&1 )
+
+if [ -n "${DEBUG}" ]; then
+  echo "sleep infinity"
+  while true; do sleep 10000; done
+fi
