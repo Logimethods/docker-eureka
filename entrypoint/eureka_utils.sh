@@ -205,6 +205,7 @@ kill_cmdpid () {
 
 #### AVAILABILITY ###
 
+## https://www.computerhope.com/unix/nc.htm
 function call_availability() {
   if [[ $EUREKA_DEBUG = *netcat* ]]; then
     echo "netcat -z -q 2 $1 ${EUREKA_AVAILABILITY_PORT}"
