@@ -52,7 +52,7 @@ _Tip_: to be able to desable the ping answer of a container, the `/proc:/writabl
 ### FAILED_WHEN
 Makes the Container Unavailable when the provided string is catched on the log.
 
-_Note_: If `$KILL_WHEN_FAILED` is set to `true`, the Caontainer will then be killed.
+_Note_: If `$KILL_WHEN_FAILED` is set to `true`, the Container will then be killed.
 
 ## Docker HEALTHCHECK
 To setup the [Docker Health Check](https://docs.docker.com/engine/reference/builder/#healthcheck) feature, you should add the following instruction to the Dockerfile:
