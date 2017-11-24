@@ -17,6 +17,10 @@ add_tasks() {
   log "tasks" "++ <${__NEW_TASKS[*]}>"
 }
 
+stop_tasks() {
+  __RUNNING=false
+}
+
 remove_tasks() {
   delete=($@)
   ## https://stackoverflow.com/questions/16860877/remove-element-from-array-shell
@@ -62,6 +66,9 @@ INIT() {
   add_tasks 'MIDDLE' 'REMOVE'
 #  __RUNNING=false
   add_tasks 'MIDDLE' 'MIDDLE' 'ADD#END'
+
+#  __CHECK_TIMEOUT=`echo $(date +%s) + $CHECK_TIMEOUT | bc`
+  add_tasks "CHECK_TIMEOUT"
 }
 
 MIDDLE() {
@@ -86,6 +93,18 @@ ADD() {
 END() {
   echo ">END"
 #  __RUNNING=false
+}
+
+CHECK_TIMEOUT() {
+  if [[ $__TASKS != 'CHECK_TIMEOUT' ]]; then
+    __date=$(date +%s)
+    echo "$__date"
+    if [[ $__CHECK_TIMEOUT -gt $__date ]]; then
+      add_tasks 'CHECK_TIMEOUT'
+    else
+      stop_tasks
+    fi
+  fi
 }
 
 run_tasks 'INIT'
