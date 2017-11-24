@@ -1,14 +1,16 @@
 #!/bin/bash
 
 __RUNNING=true
-__TASKS=('INIT')
+__TASKS=()
 
 add_tasks() {
   __NEW_TASKS+=($@)
   echo "<${__NEW_TASKS[*]}>"
 }
 
-main() {
+run_taks() {
+  __TASKS+=($@)
+
   while $__RUNNING && [[ ${#__TASKS[@]} -ne 0 ]]; do
     echo "[${__TASKS[*]}]"
     __NEW_TASKS=()
@@ -43,4 +45,4 @@ __END() {
 #  __RUNNING=false
 }
 
-main
+run_taks 'INIT'
