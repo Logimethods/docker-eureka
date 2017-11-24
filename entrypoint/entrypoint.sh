@@ -55,6 +55,7 @@ set -a
 #  desable_availability ;
 #  setup_local_containers ;
 #  initial_check $cmdpid ;
+  (run_tasks "CONTINUOUS_CHECK_INIT#$cmdpid") &
 #  (infinite_setup_check $cmdpid) &
 #  infinite_monitor $cmdpid ;
   include /entrypoint_prepare.sh ;

@@ -72,15 +72,17 @@ remove_tasks() {
 
 run_tasks() {
   __TASKS+=($@)
-
+echo "!!! ${__TASKS[*]}"
   while $__RUNNING && [[ ${#__TASKS[@]} -ne 0 ]]; do
     log "info" "[${__TASKS[*]}]"
     __NEW_TASKS=()
 
     for __TASK in "${__TASKS[@]}"; do
-      command=$(echo $__TASK | tr '#' ' ')
-      log info "\$ $command"
-      eval $command
+      if $__RUNNING ; then
+        command=$(echo $__TASK | tr '#' ' ')
+        log info "\$ $command"
+        eval $command
+      fi
     done
 
     log "tasks" "__NEW_TASKS: [${__NEW_TASKS[*]}]"
@@ -100,32 +102,44 @@ INIT() {
     add_tasks 'setup_local_containers'
   fi
 
-  add_tasks 'INITIAL_CHECK'
+  add_tasks 'INITIAL_WAIT'
 }
 
-INITIAL_CHECK() {
+INITIAL_WAIT() {
   #### SETUP timeout
   if [ -n "${CHECK_TIMEOUT}" ]; then
-    __CHECK_TIMEOUT=`echo $(date +%s) + $CHECK_TIMEOUT | bc`
+    __WAIT_TIMEOUT=`echo $(date +%s) + $CHECK_TIMEOUT | bc`
     log 'info' "TIMEOUT SET to $CHECK_TIMEOUT seconds"
-    add_tasks "CHECK_TIMEOUT"
+    add_tasks "WAIT_TIMEOUT"
   fi
 
   if [ -n "${DEPENDS_ON_SERVICES}" ]; then
-    add_tasks 'DEPENDS_ON_SERVICES_CHECK'
+    add_tasks 'DEPENDS_ON_SERVICES_WAIT'
   fi
 
   if [ -n "${DEPENDS_ON}" ]; then
-    __DEPENDS_ON_URLS=$(echo $DEPENDS_ON | tr "," "\n")
-    add_tasks 'DEPENDS_ON_CHECK'
+    URLS=$(echo $DEPENDS_ON | tr "," "\n")
+    for URL in $URLS
+    do
+      add_tasks "DEPENDS_ON_URL_WAIT#${URL}"
+    done
+  fi
+
+  # https://github.com/Eficode/wait-for
+  if [ -n "${WAIT_FOR}" ]; then
+    URLS=$(echo $WAIT_FOR | tr "," "\n")
+    for URL in $URLS
+    do
+      add_tasks "WAIT_FOR_URL#${URL}"
+    done
   fi
 }
 
-CHECK_TIMEOUT() {
-  if [[ "${__TASKS[*]}" != 'CHECK_TIMEOUT' ]]; then
+WAIT_TIMEOUT() {
+  if [[ "${__TASKS[*]}" != 'WAIT_TIMEOUT' ]]; then
     __date=$(date +%s)
-    if [[ $__CHECK_TIMEOUT -gt $__date ]]; then
-      add_tasks 'CHECK_TIMEOUT'
+    if [[ $__WAIT_TIMEOUT -gt $__date ]]; then
+      add_tasks 'WAIT_TIMEOUT'
     else
       log info 'TIME OUT!'
       stop_tasks
@@ -133,40 +147,24 @@ CHECK_TIMEOUT() {
   fi
 }
 
-DEPENDS_ON_SERVICES_CHECK() {
+DEPENDS_ON_SERVICES_WAIT() {
   if [ "$(call_eureka /dependencies/${DEPENDS_ON_SERVICES})" != "OK" ]; then
     log 'info' "Still WAITING for Service Dependencies ${DEPENDS_ON_SERVICES}"
-    add_tasks 'DEPENDS_ON_SERVICES_CHECK'
+    add_tasks 'DEPENDS_ON_SERVICES_WAIT'
   fi
 }
 
-DEPENDS_ON_CHECK() {
-  URLS=$(echo $DEPENDS_ON | tr "," "\n")
-  for URL in $URLS
-  do
-    add_tasks "DEPENDS_ON_URL_CHECK#${URL}"
-  done
-}
-
-DEPENDS_ON_URL_CHECK() {
+DEPENDS_ON_URL_WAIT() {
   URL=$1
   if call_availability ${URL}; then
     log 'availability' "${URL} URL AVAILABLE"
   else
-    add_tasks "DEPENDS_ON_URL_CHECK#${URL}"
+    add_tasks "DEPENDS_ON_URL_WAIT#${URL}"
     log 'availability' "Still WAITING for ${URL} AVAILABILITY"
   fi
 }
 
-WAIT_FOR_CHECK() {
-  URLS=$(echo $WAIT_FOR | tr "," "\n")
-  for URL in $URLS
-  do
-    add_tasks "WAIT_FOR_URL_CHECK#${URL}"
-  done
-}
-
-WAIT_FOR_URL_CHECK() {
+WAIT_FOR_URL() {
   URL=$1
   if [[ $URL == *":"* ]]; then # url + port
     HOST=$(printf "%s\n" "$URL"| cut -d : -f 1)
@@ -179,7 +177,7 @@ WAIT_FOR_URL_CHECK() {
       if [[ "${HOST}" == *_local* ]]; then
         add_tasks 'setup_local_containers'
       fi
-      add_tasks "WAIT_FOR_URL_CHECK#${URL}"
+      add_tasks "WAIT_FOR_URL#${URL}"
     fi
   else # ping url
     if safe_ping $URL; then
@@ -189,7 +187,113 @@ WAIT_FOR_URL_CHECK() {
       if [[ "${URL}" == *_local* ]]; then
         add_tasks 'setup_local_containers'
       fi
-      add_tasks "WAIT_FOR_URL_CHECK#${URL}"
+      add_tasks "WAIT_FOR_URL#${URL}"
+    fi
+  fi
+}
+
+CONTINUOUS_CHECK_INIT() {
+  cmdpid=$1
+  echo "cmdpid: $cmdpid"
+  : '
+  if [ -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ]; then
+    while true
+    do
+      setup_local_containers
+      sleep $interval
+      if [ "$CONTINUOUS_CHECK" == "true" ] ; then
+        check_dependencies $1
+      fi
+    done
+  fi
+  '
+
+  if [ -n "${DEPENDS_ON_SERVICES}" ]; then
+    add_tasks "DEPENDS_ON_SERVICES_CHECK#$cmdpid"
+  fi
+
+  if [ -n "${DEPENDS_ON}" ]; then
+    URLS=$(echo $DEPENDS_ON | tr "," "\n")
+    for URL in $URLS
+    do
+      add_tasks "DEPENDS_ON_URL_CHECK#${URL}#$cmdpid"
+    done
+  fi
+
+  # https://github.com/Eficode/wait-for
+  if [ -n "${WAIT_FOR}" ]; then
+    URLS=$(echo $WAIT_FOR | tr "," "\n")
+    for URL in $URLS
+    do
+      add_tasks "URL_CHECK#${URL}#$cmdpid"
+    done
+  fi
+
+  : '
+  if [ -n "${READY_WHEN}" ] || [ -n "${FAILED_WHEN}" ]; then
+    exec 1> >(
+    while read line
+    do
+      >&2 echo "${EUREKA_LINE_START}${line}"
+      monitor_output "$line" $1
+    done
+    )
+
+    if [[ $EUREKA_DEBUG = *monitor* ]]; then
+      >&2 echo "${EUREKA_PROMPT}infinite_monitor STARTED";
+    fi
+  fi
+  '
+}
+
+DEPENDS_ON_SERVICES_CHECK() {
+  cmdpid=$1
+  if [ "$(call_eureka /dependencies/${DEPENDS_ON_SERVICES})" == "OK" ]; then
+    add_tasks "DEPENDS_ON_SERVICES_CHECK#$cmdpid"
+  else
+    log 'info' "Services ${DEPENDS_ON_SERVICES} NO MORE AVAILABLE(S)"
+    kill_cmdpid $cmdpid
+  fi
+}
+
+DEPENDS_ON_URL_CHECK() {
+  URL=$1
+  cmdpid=$2
+  if call_availability ${URL}; then
+    log 'availability' "${URL} URL *STILL* AVAILABLE"
+    add_tasks "DEPENDS_ON_URL_CHECK#${URL}#$cmdpid"
+  else
+    log 'info' "${URL} NO MORE AVAILABLE"
+    kill_cmdpid $cmdpid
+  fi
+}
+
+## TODO
+URL_CHECK() {
+  URL=$1
+  cmdpid=$2
+  if [[ $URL == *":"* ]]; then # url + port
+    HOST=$(printf "%s\n" "$URL"| cut -d : -f 1)
+    PORT=$(printf "%s\n" "$URL"| cut -d : -f 2)
+    # TODO Simplify
+    if netcat -vz -q 2 -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ; [ $result -eq 0 ] ; then
+      log 'availability' "${URL} URL AVAILABLE"
+    else
+      log 'availability' "Still WAITING for URL $HOST:$PORT"
+      if [[ "${HOST}" == *_local* ]]; then
+        add_tasks 'setup_local_containers'
+      fi
+      add_tasks "WAIT_FOR_URL#${URL}"
+    fi
+  else # ping url
+    if safe_ping $URL; then
+      log 'availability' "${URL} URL PING AVAILABLE"
+    else
+      log 'availability' "Still WAITING for $URL PING"
+      if [[ "${URL}" == *_local* ]]; then
+        add_tasks 'setup_local_containers'
+      fi
+      add_tasks "WAIT_FOR_URL#${URL}"
     fi
   fi
 }
@@ -343,7 +447,7 @@ safe_ping() {
   fi
 }
 
-kill_cmdpid () {
+kill_cmdpid() {
   if [ "$KILL_WHEN_FAILED" = "true" ]; then
     declare cmdpid=$1
     # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
@@ -353,7 +457,7 @@ kill_cmdpid () {
     sleep $delay
     kill -s SIGKILL $cmdpid
   else
-    ready=false
+    stop_tasks
     desable_availability &
   fi
 }
@@ -387,8 +491,8 @@ ___initial_check() {
 
   #### SETUP timeout
   if [ -n "${CHECK_TIMEOUT}" ]; then
-    add_tasks "CHECK_TIMEOUT"
-    __CHECK_TIMEOUT=`echo $(date +%s) + $CHECK_TIMEOUT | bc`
+    add_tasks "WAIT_TIMEOUT"
+    __WAIT_TIMEOUT=`echo $(date +%s) + $CHECK_TIMEOUT | bc`
   fi
 
   # https://docs.docker.com/compose/startup-order/
