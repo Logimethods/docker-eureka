@@ -1,13 +1,14 @@
 #!/bin/bash
 
 EUREKA_DEBUG="XXXX_tasks_OOOO"
+EUREKA_PROMPT="~~~"
 
 __RUNNING=true
 __TASKS=()
 
 log() {
   if [[ $EUREKA_DEBUG = *$1* ]]; then
-    echo "$2"
+    echo "${EUREKA_PROMPT}$2"
   fi
 }
 
@@ -34,10 +35,11 @@ run_taks() {
 
   while $__RUNNING && [[ ${#__TASKS[@]} -ne 0 ]]; do
     log "tasks" "[${__TASKS[@]}]"
+    log "info" "[${__TASKS[@]}]"
 ##-    log "tasks"  "=${__TASKS[0]}"
     __NEW_TASKS=()
     for __TASK in "${__TASKS[@]}"; do
-      '__'$__TASK
+      $__TASK
     done
     log "tasks" "__NEW_TASKS: [${__NEW_TASKS[*]}]"
     ## https://stackoverflow.com/questions/13648410/how-can-i-get-unique-values-from-an-array-in-bash
@@ -46,24 +48,24 @@ run_taks() {
   done
 }
 
-__INIT() {
+INIT() {
   echo ">INIT"
   add_tasks 'MIDDLE' 'REMOVE'
 #  __RUNNING=false
   add_tasks 'MIDDLE' 'MIDDLE' 'END'
 }
 
-__MIDDLE() {
+MIDDLE() {
   echo ">MIDDLE"
   add_tasks 'NOP' 'KO' 'KO2' 'KO'
 }
 
-__REMOVE() {
+REMOVE() {
   echo ">REMOVE"
   remove_tasks 'KO2' 'KO'
 }
 
-__NOP() {
+NOP() {
   echo ">NOP"
 }
 
