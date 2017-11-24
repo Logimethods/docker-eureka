@@ -22,6 +22,20 @@
 ## OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ## SOFTWARE.
 
+### PARAMETERS
+## EUREKA_LINE_START
+## EUREKA_PROMPT
+## EUREKA_AVAILABILITY_PORT
+## DEPENDS_ON
+## DEPENDS_ON_SERVICES
+## WAIT_FOR
+## READY_WHEN
+## FAILED_WHEN
+## NODE_ID
+## SETUP_LOCAL_CONTAINERS
+## EUREKA_URL
+## CHECK_TIMEOUT
+
 # https://stackoverflow.com/questions/39162846/what-does-set-e-and-set-a-do-in-bash-what-are-other-options-that-i-can-use-wit
 if [ -n "${EUREKA_DEBUG}" ]; then
   echo "EUREKA_DEBUG MODE, no exit on exception"
@@ -29,7 +43,7 @@ else
   set -e
 fi
 
-source /eureka_utils.sh
+source ./eureka_utils.sh
 # source /eureka_utils_extended.sh
 
 set -a
@@ -37,13 +51,14 @@ set -a
 ### EXEC CMD ###
 ( cmdpid=$BASHPID ;
   include /entrypoint_insert.sh ;
-  desable_availability ;
-  setup_local_containers ;
-  initial_check $cmdpid ;
-  (infinite_setup_check $cmdpid) &
-  infinite_monitor $cmdpid ;
+  run_tasks 'INIT'
+#  desable_availability ;
+#  setup_local_containers ;
+#  initial_check $cmdpid ;
+#  (infinite_setup_check $cmdpid) &
+#  infinite_monitor $cmdpid ;
   include /entrypoint_prepare.sh ;
-  enable_availability ;
+  if [ -z "${READY_WHEN}" ]; then enable_availability; fi ;
   exec "$@" 2>&1 )
 
 if [ -n "${EUREKA_DEBUG}" ]; then

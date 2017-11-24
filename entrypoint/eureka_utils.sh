@@ -30,7 +30,6 @@
 # jq
 # netcat / nc -h => Should not be "OpenBSD netcat (Debian patchlevel 4)", as founded in Alpine 3.5
 
-
 # https://stackoverflow.com/questions/10735574/include-source-script-if-it-exists-in-bash
 include () {
     #  [ -f "$1" ] && source "$1" WILL EXIT...
@@ -38,6 +37,160 @@ include () {
         echo "source $1"
         source $1
     fi
+}
+
+log() {
+  if [[ $EUREKA_DEBUG = *$1* ]]; then
+    echo "${EUREKA_PROMPT}$2"
+  fi
+}
+
+declare __RUNNING=true
+declare -a __TASKS
+
+add_tasks() {
+  __NEW_TASKS+=($@)
+  log "tasks" "++ <${__NEW_TASKS[*]}>"
+}
+
+stop_tasks() {
+  __RUNNING=false
+}
+
+remove_tasks() {
+  delete=($@)
+  ## https://stackoverflow.com/questions/16860877/remove-element-from-array-shell
+  for target in "${delete[@]}"; do
+    for i in "${!__NEW_TASKS[@]}"; do
+      if [[ ${__NEW_TASKS[i]} = "${target}" ]]; then
+        unset '__NEW_TASKS[i]'
+      fi
+    done
+  done
+  log "tasks"  "-- <${__NEW_TASKS[*]}>"
+}
+
+run_tasks() {
+  __TASKS+=($@)
+
+  while $__RUNNING && [[ ${#__TASKS[@]} -ne 0 ]]; do
+    log "info" "[${__TASKS[*]}]"
+    __NEW_TASKS=()
+
+    for __TASK in "${__TASKS[@]}"; do
+      command=$(echo $__TASK | tr '#' ' ')
+      log info "\$ $command"
+      eval $command
+    done
+
+    log "tasks" "__NEW_TASKS: [${__NEW_TASKS[*]}]"
+    ## https://stackoverflow.com/questions/13648410/how-can-i-get-unique-values-from-an-array-in-bash
+    __TASKS=($(tr ' ' '\n' <<<"${__NEW_TASKS[@]}" | awk '!u[$0]++' | tr '\n' ' '))
+  done
+}
+
+INIT() {
+  include ./entrypoint_insert.sh ;
+
+  if [ -n "${WAIT_FOR}" ] || [ -n "${DEPENDS_ON}" ] || [ -n "${DEPENDS_ON_SERVICES}" ]|| [ -n "${READY_WHEN}" ]; then
+    add_tasks 'desable_availability'
+  fi
+
+  if [ -n "${NODE_ID}" ] || [ -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ]; then
+    add_tasks 'setup_local_containers'
+  fi
+
+  add_tasks 'INITIAL_CHECK'
+}
+
+INITIAL_CHECK() {
+  #### SETUP timeout
+  if [ -n "${CHECK_TIMEOUT}" ]; then
+    __CHECK_TIMEOUT=`echo $(date +%s) + $CHECK_TIMEOUT | bc`
+    add_tasks "CHECK_TIMEOUT"
+  fi
+
+  if [ -n "${DEPENDS_ON_SERVICES}" ]; then
+    add_tasks 'DEPENDS_ON_SERVICES_CHECK'
+  fi
+
+  if [ -n "${DEPENDS_ON}" ]; then
+    __DEPENDS_ON_URLS=$(echo $DEPENDS_ON | tr "," "\n")
+    add_tasks 'DEPENDS_ON_CHECK'
+  fi
+}
+
+CHECK_TIMEOUT() {
+  if [[ $__TASKS != 'CHECK_TIMEOUT' ]]; then
+    __date=$(date +%s)
+    if [[ $__CHECK_TIMEOUT -gt $__date ]]; then
+      add_tasks 'CHECK_TIMEOUT'
+    else
+      log info 'TIME OUT!'
+      stop_tasks
+    fi
+  fi
+}
+
+DEPENDS_ON_SERVICES_CHECK() {
+  if [ "$(call_eureka /dependencies/${DEPENDS_ON_SERVICES})" != "OK" ]; then
+    log 'info' "Still WAITING for Service Dependencies ${DEPENDS_ON_SERVICES}"
+    add_tasks 'DEPENDS_ON_SERVICES_CHECK'
+  fi
+}
+
+DEPENDS_ON_CHECK() {
+  URLS=$(echo $DEPENDS_ON | tr "," "\n")
+  for URL in $URLS
+  do
+    add_tasks "DEPENDS_ON_URL_CHECK#${URL}"
+  done
+}
+
+DEPENDS_ON_URL_CHECK() {
+  URL=$1
+  if call_availability ${URL}; then
+    log 'availability' "${URL} URL AVAILABLE"
+  else
+    add_tasks "DEPENDS_ON_URL_CHECK#${URL}"
+    log 'availability' "Still WAITING for ${URL} AVAILABILITY"
+  fi
+}
+
+WAIT_FOR_CHECK() {
+  URLS=$(echo $WAIT_FOR | tr "," "\n")
+  for URL in $URLS
+  do
+    add_tasks "WAIT_FOR_URL_CHECK#${URL}"
+  done
+}
+
+WAIT_FOR_URL_CHECK() {
+  URL=$1
+  if [[ $URL == *":"* ]]; then # url + port
+    HOST=$(printf "%s\n" "$URL"| cut -d : -f 1)
+    PORT=$(printf "%s\n" "$URL"| cut -d : -f 2)
+    # TODO Simplify
+    if netcat -vz -q 2 -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ; [ $result -eq 0 ] ; then
+      log 'availability' "${URL} URL AVAILABLE"
+    else
+      log 'availability' "Still WAITING for URL $HOST:$PORT"
+      if [[ "${HOST}" == *_local* ]]; then
+        add_tasks 'setup_local_containers'
+      fi
+      add_tasks "WAIT_FOR_URL_CHECK#${URL}"
+    fi
+  else # ping url
+    if safe_ping $URL; then
+      log 'availability' "${URL} URL PING AVAILABLE"
+    else
+      log 'availability' "Still WAITING for $URL PING"
+      if [[ "${URL}" == *_local* ]]; then
+        add_tasks 'setup_local_containers'
+      fi
+      add_tasks "WAIT_FOR_URL_CHECK#${URL}"
+    fi
+  fi
 }
 
 ### PROVIDE LOCAL URLS ###
@@ -85,7 +238,7 @@ add_dns_entry() {
 }
 
 setup_local_containers() {
-  if [ -n "${NODE_ID}" ] || [ -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ]; then
+##-  if [ -n "${NODE_ID}" ] || [ -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ]; then
     # http://blog.jonathanargentiero.com/docker-sed-cannot-rename-etcsedl8ysxl-device-or-resource-busy/
     cp /etc/hosts ~/hosts.new
 
@@ -126,7 +279,7 @@ setup_local_containers() {
       echo "${EUREKA_PROMPT}---------"
       cat /etc/hosts
     fi
-  fi
+##-  fi
 }
 
 ### CHECK DEPENDENCIES ###
@@ -136,7 +289,7 @@ setup_local_containers() {
 # https://stackoverflow.com/questions/26050899/how-to-mount-host-volumes-into-docker-containers-in-dockerfile-during-build
 # docker run ... -v /proc:/writable-proc ...
 desable_availability() {
-  if [[ $EUREKA_DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}desable_availability asked" ; fi
+  log "ping" "desable_availability asked"
 
 #  write_availability_file 503 "Service Unavailable" 19
   if [ -n "${available_pid}" ]; then
@@ -151,7 +304,8 @@ desable_availability() {
   fi
 
   rm -f /availability.lock
-  if [[ $EUREKA_DEBUG = *health* ]]; then echo "${EUREKA_PROMPT}desable_availability: $(cat /availability.lock)"; fi
+
+  log "health" "desable_availability: $(cat /availability.lock)"
 }
 
 enable_availability() {
@@ -227,33 +381,13 @@ answer_availability() {
 
 #### Initial Checks ####
 
-initial_check() {
+___initial_check() {
   declare cmdpid=$1
 
   #### SETUP timeout
   if [ -n "${CHECK_TIMEOUT}" ]; then
-    # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
-    declare -i timeout=CHECK_TIMEOUT
-    (
-        for ((t = timeout; t > 0; t -= interval)); do
-            echo "${EUREKA_PROMPT}$t Second(s) Remaining Before Timeout"
-            sleep $interval
-            # kill -0 pid   Exit code indicates if a signal may be sent to $pid process.
-            kill -0 $$ || exit 0
-        done
-
-        echo "${EUREKA_PROMPT}Timeout. Will EXIT"
-        # Be nice, post SIGTERM first.
-        # The 'exit 0' below will be executed if any preceeding command fails.
-        kill -s SIGTERM $cmdpid && kill -0 $cmdpid || exit 0
-        sleep $delay
-        kill -s SIGKILL $cmdpid
-    ) 2> /dev/null &
-
-    # $! expands to the PID of the last process executed in the background.
-    timeout_pid=$!
-    # https://stackoverflow.com/questions/5719030/bash-silently-kill-background-function-process
-    disown
+    add_tasks "CHECK_TIMEOUT"
+    __CHECK_TIMEOUT=`echo $(date +%s) + $CHECK_TIMEOUT | bc`
   fi
 
   # https://docs.docker.com/compose/startup-order/
