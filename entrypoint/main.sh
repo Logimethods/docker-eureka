@@ -1,10 +1,10 @@
 #!/bin/bash
 
-EUREKA_DEBUG="XXXX_tasks_OOOO"
+EUREKA_DEBUG="XXXX_tasks_info_OOOO"
 EUREKA_PROMPT="~~~"
 
-__RUNNING=true
-__TASKS=()
+declare __RUNNING=true
+declare -a __TASKS
 
 log() {
   if [[ $EUREKA_DEBUG = *$1* ]]; then
@@ -30,17 +30,26 @@ remove_tasks() {
   log "tasks"  "-- <${__NEW_TASKS[*]}>"
 }
 
-run_taks() {
+run_tasks() {
   __TASKS+=($@)
 
   while $__RUNNING && [[ ${#__TASKS[@]} -ne 0 ]]; do
-    log "tasks" "[${__TASKS[@]}]"
-    log "info" "[${__TASKS[@]}]"
+#    log "tasks" "[${__TASKS[*]}]"
+    log "info" "[${__TASKS[*]}]"
+#    echo "---"
+#    printf '%s, ' "${__TASKS[@]}"
+#    echo "---"
 ##-    log "tasks"  "=${__TASKS[0]}"
+
     __NEW_TASKS=()
     for __TASK in "${__TASKS[@]}"; do
-      $__TASK
+      command=$(echo $__TASK | tr '#' ' ')
+      log info "\$ $command"
+      eval $command
+#      eval $(echo $__TASK | tr '#' ' ')
+#      $__TASK
     done
+
     log "tasks" "__NEW_TASKS: [${__NEW_TASKS[*]}]"
     ## https://stackoverflow.com/questions/13648410/how-can-i-get-unique-values-from-an-array-in-bash
     __TASKS=($(tr ' ' '\n' <<<"${__NEW_TASKS[@]}" | awk '!u[$0]++' | tr '\n' ' '))
@@ -52,7 +61,7 @@ INIT() {
   echo ">INIT"
   add_tasks 'MIDDLE' 'REMOVE'
 #  __RUNNING=false
-  add_tasks 'MIDDLE' 'MIDDLE' 'END'
+  add_tasks 'MIDDLE' 'MIDDLE' 'ADD#END'
 }
 
 MIDDLE() {
@@ -69,9 +78,14 @@ NOP() {
   echo ">NOP"
 }
 
-__END() {
+ADD() {
+  echo ">ADD $1"
+  add_tasks "$1"
+}
+
+END() {
   echo ">END"
 #  __RUNNING=false
 }
 
-run_taks 'INIT'
+run_tasks 'INIT'
