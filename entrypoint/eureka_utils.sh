@@ -107,6 +107,7 @@ INITIAL_CHECK() {
   #### SETUP timeout
   if [ -n "${CHECK_TIMEOUT}" ]; then
     __CHECK_TIMEOUT=`echo $(date +%s) + $CHECK_TIMEOUT | bc`
+    log 'info' "TIMEOUT SET to $CHECK_TIMEOUT seconds"
     add_tasks "CHECK_TIMEOUT"
   fi
 
@@ -121,7 +122,7 @@ INITIAL_CHECK() {
 }
 
 CHECK_TIMEOUT() {
-  if [[ $__TASKS != 'CHECK_TIMEOUT' ]]; then
+  if [[ "${__TASKS[*]}" != 'CHECK_TIMEOUT' ]]; then
     __date=$(date +%s)
     if [[ $__CHECK_TIMEOUT -gt $__date ]]; then
       add_tasks 'CHECK_TIMEOUT'

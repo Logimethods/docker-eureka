@@ -7,13 +7,14 @@ CHECK_TIMEOUT=2
 source ./eureka_utils.sh
 
 XINIT() {
-  echo ">INIT"
-  add_tasks 'MIDDLE' 'REMOVE'
-#  __RUNNING=false
-  add_tasks 'MIDDLE' 'MIDDLE' 'ADD#END'
+  echo ">XINIT"
 
   __CHECK_TIMEOUT=`echo $(date +%s) + $CHECK_TIMEOUT | bc`
   add_tasks "CHECK_TIMEOUT"
+
+  add_tasks 'MIDDLE' 'REMOVE'
+#  __RUNNING=false
+  add_tasks 'MIDDLE' 'MIDDLE' 'ADD#END'
 }
 
 MIDDLE() {
