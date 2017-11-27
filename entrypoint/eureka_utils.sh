@@ -195,40 +195,33 @@ WAIT_FOR_URL() {
 CONTINUOUS_CHECK_INIT() {
   cmdpid=$1
   echo "cmdpid: $cmdpid"
-  : '
+
   if [ -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ]; then
-    while true
-    do
-      setup_local_containers
-      sleep $interval
-      if [ "$CONTINUOUS_CHECK" == "true" ] ; then
-        check_dependencies $1
-      fi
-    done
-  fi
-  '
-
-  if [ -n "${DEPENDS_ON_SERVICES}" ]; then
-    add_tasks "DEPENDS_ON_SERVICES_CHECK#$cmdpid"
+    add_tasks "CONTINUOUS_LOCAL_CONTAINERS_SETUP"
   fi
 
-  if [ -n "${DEPENDS_ON}" ]; then
-    URLS=$(echo $DEPENDS_ON | tr "," "\n")
-    for URL in $URLS
-    do
-      add_tasks "DEPENDS_ON_URL_CHECK#${URL}#$cmdpid"
-    done
-  fi
+  if [ "$CONTINUOUS_CHECK" == "true" ] ; then
+    if [ -n "${DEPENDS_ON_SERVICES}" ]; then
+      add_tasks "CONTINUOUS_LOCAL_CONTAINERS_SETUP" "DEPENDS_ON_SERVICES_CHECK#$cmdpid"
+    fi
 
-  # https://github.com/Eficode/wait-for
-  if [ -n "${WAIT_FOR}" ]; then
-    URLS=$(echo $WAIT_FOR | tr "," "\n")
-    for URL in $URLS
-    do
-      add_tasks "URL_CHECK#${URL}#$cmdpid"
-    done
-  fi
+    if [ -n "${DEPENDS_ON}" ]; then
+      URLS=$(echo $DEPENDS_ON | tr "," "\n")
+      for URL in $URLS
+      do
+        add_tasks "DEPENDS_ON_URL_CHECK#${URL}#$cmdpid"
+      done
+    fi
 
+    # https://github.com/Eficode/wait-for
+    if [ -n "${WAIT_FOR}" ]; then
+      URLS=$(echo $WAIT_FOR | tr "," "\n")
+      for URL in $URLS
+      do
+        add_tasks "URL_CHECK#${URL}#$cmdpid"
+      done
+    fi
+  fi
   : '
   if [ -n "${READY_WHEN}" ] || [ -n "${FAILED_WHEN}" ]; then
     exec 1> >(
@@ -244,6 +237,10 @@ CONTINUOUS_CHECK_INIT() {
     fi
   fi
   '
+}
+
+CONTINUOUS_LOCAL_CONTAINERS_SETUP() {
+  add_tasks CONTINUOUS_LOCAL_CONTAINERS_SETUP setup_local_containers
 }
 
 DEPENDS_ON_SERVICES_CHECK() {
