@@ -50,8 +50,6 @@ set -a
 
 ### EXEC CMD ###
 ( cmdpid=$BASHPID ;
-pstree
-
   include /entrypoint_insert.sh ;
   run_tasks 'INIT'
 #  desable_availability ;
@@ -64,10 +62,6 @@ pstree
   if [ -z "${READY_WHEN}" ]; then
     enable_availability;
   fi ;
-
-sleep 2
-pstree
-ps
 
   if [ -n "${READY_WHEN}" ] || [ -n "${FAILED_WHEN}" ]; then
     log 'info' "Ready/Failed Monitoring Started"
@@ -86,8 +80,5 @@ ps
 
 if [[ $EUREKA_DEBUG = *stay* ]]; then
   log 'info' "STAY FOREVER!!!"
-#  sleep 2
-#  pstree
-#  ps
-  while true; do sleep 2; pstree; ps; done
+  while true; do sleep 100000 ; done
 fi

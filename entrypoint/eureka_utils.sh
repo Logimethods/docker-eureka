@@ -194,7 +194,6 @@ WAIT_FOR_URL() {
 
 CONTINUOUS_CHECK_INIT() {
   cmdpid=$1
-  echo "cmdpid: $cmdpid"
 
   if [ -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ]; then
     add_tasks "CONTINUOUS_LOCAL_CONTAINERS_SETUP"
@@ -222,10 +221,6 @@ CONTINUOUS_CHECK_INIT() {
       done
     fi
   fi
-
-##  if [ -n "${READY_WHEN}" ] || [ -n "${FAILED_WHEN}" ]; then
-##    add_tasks "START_MONITOR_OUTPUT#$cmdpid"
-##  fi
 }
 
 CONTINUOUS_LOCAL_CONTAINERS_SETUP() {
@@ -283,20 +278,6 @@ URL_CHECK() {
     fi
   fi
 }
-
-:'
-START_MONITOR_OUTPUT() {
-
-  (exec 1> >(
-    while read line
-    do
-      >&2 echo "${EUREKA_LINE_START}${line}"
-      monitor_output "$line" $1
-    done
-  ))&
-
-  log "info" "Ready/Failed Monitoring Started"
-}'
 
 ### PROVIDE LOCAL URLS ###
 # An alternative to https://github.com/docker/swarm/issues/1106
@@ -448,16 +429,11 @@ safe_ping() {
 }
 
 kill_cmdpid() {
-sleep 2
-pstree
-ps
-
   stop_tasks
+  desable_availability &
   if [ "$KILL_WHEN_FAILED" = "true" ]; then
-    declare cmdpid=$1
-    pkill -P $cmdpid
-  else
-    desable_availability &
+    log 'info' "pkill -P $1"
+    pkill -P $1 1> null
   fi
 }
 
