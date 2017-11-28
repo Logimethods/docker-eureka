@@ -222,21 +222,10 @@ CONTINUOUS_CHECK_INIT() {
       done
     fi
   fi
-  : '
-  if [ -n "${READY_WHEN}" ] || [ -n "${FAILED_WHEN}" ]; then
-    exec 1> >(
-    while read line
-    do
-      >&2 echo "${EUREKA_LINE_START}${line}"
-      monitor_output "$line" $1
-    done
-    )
 
-    if [[ $EUREKA_DEBUG = *monitor* ]]; then
-      >&2 echo "${EUREKA_PROMPT}infinite_monitor STARTED";
-    fi
+  if [ -n "${READY_WHEN}" ] || [ -n "${FAILED_WHEN}" ]; then
+    add_tasks "START_MONITOR_OUTPUT#$cmdpid"
   fi
-  '
 }
 
 CONTINUOUS_LOCAL_CONTAINERS_SETUP() {
@@ -293,6 +282,19 @@ URL_CHECK() {
       add_tasks "WAIT_FOR_URL#${URL}"
     fi
   fi
+}
+
+START_MONITOR_OUTPUT() {
+
+  (exec 1> >(
+    while read line
+    do
+      >&2 echo "${EUREKA_LINE_START}${line}"
+      monitor_output "$line" $1
+    done
+  ))&
+
+  log 'info' "Ready/Failed Monitoring Started"
 }
 
 ### PROVIDE LOCAL URLS ###
