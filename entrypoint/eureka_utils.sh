@@ -284,6 +284,7 @@ URL_CHECK() {
   fi
 }
 
+:'
 START_MONITOR_OUTPUT() {
 
   (exec 1> >(
@@ -294,8 +295,8 @@ START_MONITOR_OUTPUT() {
     done
   ))&
 
-  log 'info' "Ready/Failed Monitoring Started"
-}
+  log "info" "Ready/Failed Monitoring Started"
+}'
 
 ### PROVIDE LOCAL URLS ###
 # An alternative to https://github.com/docker/swarm/issues/1106
@@ -447,16 +448,15 @@ safe_ping() {
 }
 
 kill_cmdpid() {
+sleep 2
+pstree
+ps
+
+  stop_tasks
   if [ "$KILL_WHEN_FAILED" = "true" ]; then
     declare cmdpid=$1
-    # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
-    # Be nice, post SIGTERM first.
-    # The 'exit 0' below will be executed if any preceeding command fails.
-    kill -s SIGTERM $cmdpid && kill -0 $cmdpid || exit 0
-    sleep $delay
-    kill -s SIGKILL $cmdpid
+    pkill -P $cmdpid
   else
-    stop_tasks
     desable_availability &
   fi
 }
@@ -620,7 +620,7 @@ infinite_setup_check(){
     done
   fi
 }
-
+: '
 infinite_monitor(){
   if [[ $EUREKA_DEBUG = *monitor* ]]; then
     >&2 echo "${EUREKA_PROMPT}infinite_monitor ASKED";
@@ -641,6 +641,7 @@ infinite_monitor(){
     fi
   fi
 }
+'
 
 monitor_output() {
   declare cmdpid=$2
@@ -663,7 +664,7 @@ monitor_output() {
   fi
   if [ "$ready" = true ] && [[ $1 == *"${FAILED_WHEN}"* ]]; then
     >&2 echo "${EUREKA_PROMPT}FAILED!"
-    kill_cmdpid $cmdpid
+    ( kill_cmdpid $cmdpid ) &
   fi
 }
 

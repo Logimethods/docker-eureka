@@ -50,6 +50,8 @@ set -a
 
 ### EXEC CMD ###
 ( cmdpid=$BASHPID ;
+pstree
+
   include /entrypoint_insert.sh ;
   run_tasks 'INIT'
 #  desable_availability ;
@@ -63,22 +65,29 @@ set -a
     enable_availability;
   fi ;
 
+sleep 2
+pstree
+ps
+
   if [ -n "${READY_WHEN}" ] || [ -n "${FAILED_WHEN}" ]; then
     log 'info' "Ready/Failed Monitoring Started"
-    (exec "$@" | \
+    ## https://stackoverflow.com/questions/4331309/shellscript-to-monitor-a-log-file-if-keyword-triggers-then-execute-a-command
+    exec "$@" | \
       while read line ; do
     #    >&2 echo "${EUREKA_LINE_START}${line}"
         echo "${EUREKA_LINE_START}${line}"
         monitor_output "$line" $cmdpid
       done
-    )
   else
     log 'info' "Started without Monitoring"
     exec "$@"
   fi
 )
 
-if [ -n "${EUREKA_DEBUG}" ]; then
-  echo "sleep infinity"
-  while true; do sleep 10000; done
+if [[ $EUREKA_DEBUG = *stay* ]]; then
+  log 'info' "STAY FOREVER!!!"
+#  sleep 2
+#  pstree
+#  ps
+  while true; do sleep 2; pstree; ps; done
 fi
