@@ -223,9 +223,9 @@ CONTINUOUS_CHECK_INIT() {
     fi
   fi
 
-  if [ -n "${READY_WHEN}" ] || [ -n "${FAILED_WHEN}" ]; then
-    add_tasks "START_MONITOR_OUTPUT#$cmdpid"
-  fi
+##  if [ -n "${READY_WHEN}" ] || [ -n "${FAILED_WHEN}" ]; then
+##    add_tasks "START_MONITOR_OUTPUT#$cmdpid"
+##  fi
 }
 
 CONTINUOUS_LOCAL_CONTAINERS_SETUP() {

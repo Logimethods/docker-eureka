@@ -59,8 +59,24 @@ set -a
 #  (infinite_setup_check $cmdpid) &
 #  infinite_monitor $cmdpid ;
   include /entrypoint_prepare.sh ;
-  if [ -z "${READY_WHEN}" ]; then enable_availability; fi ;
-  exec "$@" 2>&1 )
+  if [ -z "${READY_WHEN}" ]; then
+    enable_availability;
+  fi ;
+
+  if [ -n "${READY_WHEN}" ] || [ -n "${FAILED_WHEN}" ]; then
+    log 'info' "Ready/Failed Monitoring Started"
+    (exec "$@" | \
+      while read line ; do
+    #    >&2 echo "${EUREKA_LINE_START}${line}"
+        echo "${EUREKA_LINE_START}${line}"
+        monitor_output "$line" $cmdpid
+      done
+    )
+  else
+    log 'info' "Started without Monitoring"
+    exec "$@"
+  fi
+)
 
 if [ -n "${EUREKA_DEBUG}" ]; then
   echo "sleep infinity"
