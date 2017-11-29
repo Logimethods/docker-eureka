@@ -429,7 +429,7 @@ safe_ping() {
       if [[ $EUREKA_DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}$1 applied to ${url}" ; fi
     fi
     if [[ $EUREKA_DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}\$(call_eureka /ping/$url) = $(call_eureka /ping/$url)"; fi
-    test $(call_eureka /ping/$url) == "OK"
+    test $(call_eureka /ping/$url) == "OK" &>/dev/null
     return $?
   fi
 }
