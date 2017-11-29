@@ -154,12 +154,17 @@ DEPENDS_ON_SERVICES_WAIT() {
   fi
 }
 
+SLEEP() {
+  log 'sleep' "$1"
+  sleep ${1:-1}
+}
+
 DEPENDS_ON_URL_WAIT() {
   URL=$1
   if call_availability ${URL}; then
     log 'availability' "${URL} URL AVAILABLE"
   else
-    add_tasks "DEPENDS_ON_URL_WAIT#${URL}"
+    add_tasks "SLEEP#${CHECK_DEPENDENCIES_INTERVAL}" "DEPENDS_ON_URL_WAIT#${URL}"
     log 'availability' "Still WAITING for ${URL} AVAILABILITY"
   fi
 }
@@ -177,7 +182,7 @@ WAIT_FOR_URL() {
       if [[ "${HOST}" == *_local* ]]; then
         add_tasks 'setup_local_containers'
       fi
-      add_tasks "WAIT_FOR_URL#${URL}"
+      add_tasks "SLEEP#${CHECK_DEPENDENCIES_INTERVAL}" "WAIT_FOR_URL#${URL}"
     fi
   else # ping url
     if safe_ping $URL; then
@@ -187,7 +192,7 @@ WAIT_FOR_URL() {
       if [[ "${URL}" == *_local* ]]; then
         add_tasks 'setup_local_containers'
       fi
-      add_tasks "WAIT_FOR_URL#${URL}"
+      add_tasks "SLEEP#${CHECK_DEPENDENCIES_INTERVAL}" "WAIT_FOR_URL#${URL}"
     fi
   fi
 }
@@ -230,7 +235,7 @@ CONTINUOUS_LOCAL_CONTAINERS_SETUP() {
 DEPENDS_ON_SERVICES_CHECK() {
   cmdpid=$1
   if [ "$(call_eureka /dependencies/${DEPENDS_ON_SERVICES})" == "OK" ]; then
-    add_tasks "DEPENDS_ON_SERVICES_CHECK#$cmdpid"
+    add_tasks "SLEEP#${CHECK_DEPENDENCIES_INTERVAL}" "DEPENDS_ON_SERVICES_CHECK#$cmdpid"
   else
     log 'info' "Services ${DEPENDS_ON_SERVICES} NO MORE AVAILABLE(S)"
     kill_cmdpid $cmdpid
@@ -242,7 +247,7 @@ DEPENDS_ON_URL_CHECK() {
   cmdpid=$2
   if call_availability ${URL}; then
     log 'availability' "${URL} URL *STILL* AVAILABLE"
-    add_tasks "DEPENDS_ON_URL_CHECK#${URL}#$cmdpid"
+    add_tasks "SLEEP#${CHECK_DEPENDENCIES_INTERVAL}" "DEPENDS_ON_URL_CHECK#${URL}#$cmdpid"
   else
     log 'info' "${URL} NO MORE AVAILABLE"
     kill_cmdpid $cmdpid
@@ -264,7 +269,7 @@ URL_CHECK() {
       if [[ "${HOST}" == *_local* ]]; then
         add_tasks 'setup_local_containers'
       fi
-      add_tasks "WAIT_FOR_URL#${URL}"
+      add_tasks "SLEEP#${CHECK_DEPENDENCIES_INTERVAL}" "WAIT_FOR_URL#${URL}"
     fi
   else # ping url
     if safe_ping $URL; then
@@ -274,7 +279,7 @@ URL_CHECK() {
       if [[ "${URL}" == *_local* ]]; then
         add_tasks 'setup_local_containers'
       fi
-      add_tasks "WAIT_FOR_URL#${URL}"
+      add_tasks "SLEEP#${CHECK_DEPENDENCIES_INTERVAL}" "WAIT_FOR_URL#${URL}"
     fi
   fi
 }
