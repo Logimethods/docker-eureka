@@ -95,7 +95,7 @@ INIT() {
   include ./entrypoint_insert.sh ;
 
   if [ -n "${WAIT_FOR}" ] || [ -n "${DEPENDS_ON}" ] || [ -n "${DEPENDS_ON_SERVICES}" ]|| [ -n "${READY_WHEN}" ]; then
-    add_tasks 'desable_availability'
+    add_tasks 'disable_availability'
   fi
 
   if [ -n "${NODE_ID}" ] || [ -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ]; then
@@ -379,8 +379,8 @@ setup_local_containers() {
 # https://stackoverflow.com/questions/26177059/refresh-net-core-somaxcomm-or-any-sysctl-property-for-docker-containers/26197875#26197875
 # https://stackoverflow.com/questions/26050899/how-to-mount-host-volumes-into-docker-containers-in-dockerfile-during-build
 # docker run ... -v /proc:/writable-proc ...
-desable_availability() {
-  log "ping" "desable_availability asked"
+disable_availability() {
+  log "health" "DISABLING AVAILABILIY REQUESTED"
 
 #  write_availability_file 503 "Service Unavailable" 19
   if [ -n "${available_pid}" ]; then
@@ -391,16 +391,16 @@ desable_availability() {
   if [ -e /writable-proc/sys/net/ipv4/icmp_echo_ignore_all ]; then
     echo "1" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
   else
-    echo "${EUREKA_PROMPT}desable ping not allowed"
+    log 'ping' "disabling ping not allowed"
   fi
 
-  rm -f /availability.lock
+  rm -f /availability.lock 2>/dev/null
 
-  log "health" "desable_availability: $(cat /availability.lock)"
+  log "health" "AVAILABILIY DISABLED"
 }
 
 enable_availability() {
-  if [[ $EUREKA_DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}enable_availability asked"; fi
+  log "health" "ENABLING AVAILABILIY REQUESTED"
 
   if [ "$AVAILABILITY_ALLOWED" != "false" ]; then
     ( while true; do echo "^C" | answer_availability ; done ) &
@@ -412,7 +412,8 @@ enable_availability() {
   fi
 
   echo "AVAILABLE" > /availability.lock
-  if [[ $EUREKA_DEBUG = *health* ]]; then echo "${EUREKA_PROMPT}enable_availability: $(cat /availability.lock)"; fi
+
+  log "health" "AVAILABILIY ENABLED"
 }
 
 safe_ping() {
@@ -435,7 +436,7 @@ safe_ping() {
 
 kill_cmdpid() {
   stop_tasks
-  desable_availability &
+  disable_availability &
   if [ "$KILL_WHEN_FAILED" = "true" ]; then
     log 'info' "pkill -P $1"
     pkill -P $1 1> null
@@ -680,7 +681,7 @@ fi
 
 if [ -n "${READY_WHEN}" ]; then
   declare ready=false
-  desable_availability
+  disable_availability
 else
   declare ready=$READINESS
 fi
