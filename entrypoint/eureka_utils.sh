@@ -156,7 +156,7 @@ DEPENDS_ON_SERVICES_WAIT() {
 
 SLEEP() {
   log 'sleep' "$1"
-  sleep ${1:-1}
+  sleep ${1}
 }
 
 DEPENDS_ON_URL_WAIT() {
@@ -439,7 +439,7 @@ kill_cmdpid() {
   disable_availability &
   if [ "$KILL_WHEN_FAILED" = "true" ]; then
     log 'info' "pkill -P $1"
-    pkill -P $1 1> null
+    pkill -P $1 &>/dev/null
   fi
 }
 
