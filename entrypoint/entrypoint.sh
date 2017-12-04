@@ -44,7 +44,7 @@ else
   set -e
 fi
 
-source ./eureka_utils.sh
+source /eureka_utils.sh
 # source /eureka_utils_extended.sh
 
 set -a
