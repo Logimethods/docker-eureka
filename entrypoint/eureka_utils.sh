@@ -287,9 +287,9 @@ URL_CHECK() {
 
 function call_eureka() {
   if hash curl 2>/dev/null; then
-      echo $(curl -s "http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}$@")
+      echo $(curl --max-time ${CHECK_DEPENDENCIES_INTERVAL} -s "http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}$@")
   else
-      echo $(wget -q -O - "http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}$@")
+      echo $(wget --timeout=${CHECK_DEPENDENCIES_INTERVAL} -q -O - "http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}$@")
   fi
 }
 
