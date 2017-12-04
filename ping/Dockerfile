@@ -33,7 +33,6 @@ RUN apk --no-cache add \
 
 COPY --from=entrypoint eureka_utils.sh /eureka_utils.sh
 COPY --from=entrypoint entrypoint.sh /entrypoint.sh
-COPY --from=entrypoint eureka_utils_alpine.sh /eureka_utils_extended.sh
 
 # OPTIONAL
 COPY entrypoint_insert.sh /entrypoint_insert.sh
