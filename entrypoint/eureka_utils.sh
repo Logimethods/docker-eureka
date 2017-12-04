@@ -433,11 +433,28 @@ safe_ping() {
 }
 
 kill_cmdpid() {
+  cmdpid=$1
+pstree
+ps
   stop_tasks
   disable_availability &
   if [ "$KILL_WHEN_FAILED" = "true" ]; then
-    log 'info' "pkill -P $1"
-    pkill -P $1 &>/dev/null
+    log 'info' "pkill -P $cmdpid"
+    pkill -P $cmdpid
+    ## &>/dev/null
+    # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
+    # Be nice, post SIGTERM first.
+    # The 'exit 0' below will be executed if any preceeding command fails.
+    log 'info' "kill -s SIGTERM $cmdpid && kill -0 $cmdpid"
+    kill -s SIGTERM $cmdpid && kill -0 $cmdpid
+    sleep $delay
+    log 'info' "kill -s SIGKILL $cmdpid"
+    kill -s SIGKILL $cmdpid
+
+    if [[ $EUREKA_DEBUG != *stay* ]]; then
+      log 'info' "exit 0 REQUESTED"
+      exit 0
+    fi
   fi
 }
 
