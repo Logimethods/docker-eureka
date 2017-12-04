@@ -332,6 +332,8 @@ setup_local_containers() {
     # http://blog.jonathanargentiero.com/docker-sed-cannot-rename-etcsedl8ysxl-device-or-resource-busy/
     cp /etc/hosts ~/hosts.new
 
+    ## CONTAINERS=$(call_eureka /containers)
+
     if [ -z "$NODE_ID" ]; then
       SERVICES=$(call_eureka /services)
     else
