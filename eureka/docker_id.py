@@ -117,6 +117,12 @@ def get_all_containers():
         containers.extend(get_containers_from_tasks(service, tasks))
     return containers
 
+def get_local_containers():
+    containers = []
+    for container in client.containers.list():
+        containers.append(container.name)
+    return containers
+
 def check_dependencies(str):
     containers = []
     for container in client.containers.list():
@@ -211,6 +217,10 @@ def dependencies(str):
 @app.route('/ping/<string:str>')
 def ping(str):
     return "OK" if check_ping(str) else "KO"
+
+@app.route('/containers')
+def containers():
+    return json.dumps(get_local_containers())
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0')

@@ -30,7 +30,6 @@
 # jq
 # netcat / nc -h => Should not be "OpenBSD netcat (Debian patchlevel 4)", as founded in Alpine 3.5
 
-
 # https://stackoverflow.com/questions/10735574/include-source-script-if-it-exists-in-bash
 include () {
     #  [ -f "$1" ] && source "$1" WILL EXIT...
@@ -40,15 +39,258 @@ include () {
     fi
 }
 
+log() {
+  if [[ $EUREKA_DEBUG = *$1* ]]; then
+    echo "${EUREKA_PROMPT}$2"
+  fi
+}
+
+declare __RUNNING=true
+declare -a __TASKS
+
+add_tasks() {
+  __NEW_TASKS+=($@)
+  log "tasks" "++ <${__NEW_TASKS[*]}>"
+}
+
+stop_tasks() {
+  __RUNNING=false
+}
+
+remove_tasks() {
+  delete=($@)
+  ## https://stackoverflow.com/questions/16860877/remove-element-from-array-shell
+  for target in "${delete[@]}"; do
+    for i in "${!__NEW_TASKS[@]}"; do
+      if [[ ${__NEW_TASKS[i]} = "${target}" ]]; then
+        unset '__NEW_TASKS[i]'
+      fi
+    done
+  done
+  log "tasks"  "-- <${__NEW_TASKS[*]}>"
+}
+
+run_tasks() {
+  __TASKS+=($@)
+  while $__RUNNING && [[ ${#__TASKS[@]} -ne 0 ]]; do
+    log "info" "[${__TASKS[*]}]"
+    __NEW_TASKS=()
+
+    for __TASK in "${__TASKS[@]}"; do
+      if $__RUNNING ; then
+        command=$(echo $__TASK | tr '#' ' ')
+        log info "\$ $command"
+        eval $command
+      fi
+    done
+
+    log "tasks" "__NEW_TASKS: [${__NEW_TASKS[*]}]"
+    ## https://stackoverflow.com/questions/13648410/how-can-i-get-unique-values-from-an-array-in-bash
+    __TASKS=($(tr ' ' '\n' <<<"${__NEW_TASKS[@]}" | awk '!u[$0]++' | tr '\n' ' '))
+  done
+}
+
+INIT() {
+  include ./entrypoint_insert.sh ;
+
+  if [ -n "${WAIT_FOR}" ] || [ -n "${DEPENDS_ON}" ] || [ -n "${DEPENDS_ON_SERVICES}" ]|| [ -n "${READY_WHEN}" ]; then
+    add_tasks 'disable_availability'
+  fi
+
+  if [ -n "${NODE_ID}" ] || [ -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ]; then
+    add_tasks 'setup_local_containers'
+  fi
+
+  add_tasks 'INITIAL_WAIT'
+}
+
+INITIAL_WAIT() {
+  #### SETUP timeout
+  if [ -n "${CHECK_TIMEOUT}" ]; then
+    __WAIT_TIMEOUT=`echo $(date +%s) + $CHECK_TIMEOUT | bc`
+    log 'info' "TIMEOUT SET to $CHECK_TIMEOUT seconds"
+    add_tasks "WAIT_TIMEOUT"
+  fi
+
+  if [ -n "${DEPENDS_ON_SERVICES}" ]; then
+    add_tasks 'DEPENDS_ON_SERVICES_WAIT'
+  fi
+
+  if [ -n "${DEPENDS_ON}" ]; then
+    URLS=$(echo $DEPENDS_ON | tr "," "\n")
+    for URL in $URLS
+    do
+      add_tasks "DEPENDS_ON_URL_WAIT#${URL}"
+    done
+  fi
+
+  # https://github.com/Eficode/wait-for
+  if [ -n "${WAIT_FOR}" ]; then
+    URLS=$(echo $WAIT_FOR | tr "," "\n")
+    for URL in $URLS
+    do
+      add_tasks "WAIT_FOR_URL#${URL}"
+    done
+  fi
+}
+
+WAIT_TIMEOUT() {
+  if [[ "${__TASKS[*]}" != 'WAIT_TIMEOUT' ]]; then
+    __date=$(date +%s)
+    if [[ $__WAIT_TIMEOUT -gt $__date ]]; then
+      add_tasks 'WAIT_TIMEOUT'
+    else
+      log info 'TIME OUT!'
+      stop_tasks
+    fi
+  fi
+}
+
+DEPENDS_ON_SERVICES_WAIT() {
+  if [ "$(call_eureka /dependencies/${DEPENDS_ON_SERVICES})" != "OK" ]; then
+    log 'info' "Still WAITING for Service Dependencies ${DEPENDS_ON_SERVICES}"
+    add_tasks 'DEPENDS_ON_SERVICES_WAIT'
+  fi
+}
+
+SLEEP() {
+  log 'sleep' "$1"
+  sleep ${1}
+}
+
+DEPENDS_ON_URL_WAIT() {
+  URL=$1
+  if call_availability ${URL}; then
+    log 'availability' "${URL} URL AVAILABLE"
+  else
+    add_tasks "SLEEP#${CHECK_DEPENDENCIES_INTERVAL}" "DEPENDS_ON_URL_WAIT#${URL}"
+    log 'availability' "Still WAITING for ${URL} AVAILABILITY"
+  fi
+}
+
+WAIT_FOR_URL() {
+  URL=$1
+  if [[ $URL == *":"* ]]; then # url + port
+    HOST=$(printf "%s\n" "$URL"| cut -d : -f 1)
+    PORT=$(printf "%s\n" "$URL"| cut -d : -f 2)
+    # TODO Simplify
+    if netcat -vz -q 2 -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ; [ $result -eq 0 ] ; then
+      log 'availability' "${URL} URL AVAILABLE"
+    else
+      log 'availability' "Still WAITING for URL $HOST:$PORT"
+      if [[ "${HOST}" == *_local* ]]; then
+        add_tasks 'setup_local_containers'
+      fi
+      add_tasks "SLEEP#${CHECK_DEPENDENCIES_INTERVAL}" "WAIT_FOR_URL#${URL}"
+    fi
+  else # ping url
+    if safe_ping $URL; then
+      log 'availability' "${URL} URL PING AVAILABLE"
+    else
+      log 'availability' "Still WAITING for $URL PING"
+      if [[ "${URL}" == *_local* ]]; then
+        add_tasks 'setup_local_containers'
+      fi
+      add_tasks "SLEEP#${CHECK_DEPENDENCIES_INTERVAL}" "WAIT_FOR_URL#${URL}"
+    fi
+  fi
+}
+
+CONTINUOUS_CHECK_INIT() {
+  cmdpid=$1
+
+  if [ -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ]; then
+    add_tasks "CONTINUOUS_LOCAL_CONTAINERS_SETUP"
+  fi
+
+  if [ "$CONTINUOUS_CHECK" == "true" ] ; then
+    if [ -n "${DEPENDS_ON_SERVICES}" ]; then
+      add_tasks "CONTINUOUS_LOCAL_CONTAINERS_SETUP" "DEPENDS_ON_SERVICES_CHECK#$cmdpid"
+    fi
+
+    if [ -n "${DEPENDS_ON}" ]; then
+      URLS=$(echo $DEPENDS_ON | tr "," "\n")
+      for URL in $URLS
+      do
+        add_tasks "DEPENDS_ON_URL_CHECK#${URL}#$cmdpid"
+      done
+    fi
+
+    # https://github.com/Eficode/wait-for
+    if [ -n "${WAIT_FOR}" ]; then
+      URLS=$(echo $WAIT_FOR | tr "," "\n")
+      for URL in $URLS
+      do
+        add_tasks "URL_CHECK#${URL}#$cmdpid"
+      done
+    fi
+  fi
+}
+
+CONTINUOUS_LOCAL_CONTAINERS_SETUP() {
+  add_tasks CONTINUOUS_LOCAL_CONTAINERS_SETUP setup_local_containers
+}
+
+DEPENDS_ON_SERVICES_CHECK() {
+  cmdpid=$1
+  if [ "$(call_eureka /dependencies/${DEPENDS_ON_SERVICES})" == "OK" ]; then
+    add_tasks "SLEEP#${CHECK_DEPENDENCIES_INTERVAL}" "DEPENDS_ON_SERVICES_CHECK#$cmdpid"
+  else
+    log 'info' "Services ${DEPENDS_ON_SERVICES} NO MORE AVAILABLE(S)"
+    kill_cmdpid $cmdpid
+  fi
+}
+
+DEPENDS_ON_URL_CHECK() {
+  URL=$1
+  cmdpid=$2
+  if call_availability ${URL}; then
+    log 'availability' "${URL} URL *STILL* AVAILABLE"
+    add_tasks "SLEEP#${CHECK_DEPENDENCIES_INTERVAL}" "DEPENDS_ON_URL_CHECK#${URL}#$cmdpid"
+  else
+    log 'info' "${URL} NO MORE AVAILABLE"
+    kill_cmdpid $cmdpid
+  fi
+}
+
+URL_CHECK() {
+  URL=$1
+  cmdpid=$2
+  if [[ $URL == *":"* ]]; then # url + port
+    HOST=$(printf "%s\n" "$URL"| cut -d : -f 1)
+    PORT=$(printf "%s\n" "$URL"| cut -d : -f 2)
+    # TODO Simplify
+    if netcat -vz -q 2 -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ; [ $result -eq 0 ] ; then
+      log 'availability' "${URL} URL AVAILABLE"
+    else
+      log 'availability' "Still WAITING for URL $HOST:$PORT"
+      if [[ "${HOST}" == *_local* ]]; then
+        add_tasks 'setup_local_containers'
+      fi
+      add_tasks "SLEEP#${CHECK_DEPENDENCIES_INTERVAL}" "WAIT_FOR_URL#${URL}"
+    fi
+  else # ping url
+    if safe_ping $URL; then
+      log 'availability' "${URL} URL PING AVAILABLE"
+    else
+      log 'availability' "Still WAITING for $URL PING"
+      if [[ "${URL}" == *_local* ]]; then
+        add_tasks 'setup_local_containers'
+      fi
+      add_tasks "SLEEP#${CHECK_DEPENDENCIES_INTERVAL}" "WAIT_FOR_URL#${URL}"
+    fi
+  fi
+}
+
 ### PROVIDE LOCAL URLS ###
 # An alternative to https://github.com/docker/swarm/issues/1106
 
 function call_eureka() {
-    if hash curl 2>/dev/null; then
-        echo $(curl -s "http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}$@")
-    else
-        echo $(wget -q -O - "http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}$@")
-    fi
+  if hash curl 2>/dev/null; then
+      echo $(curl --max-time ${CHECK_DEPENDENCIES_INTERVAL} -s "http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}$@")
+  else
+      echo $(wget --timeout=${CHECK_DEPENDENCIES_INTERVAL} -q -O - "http://${EUREKA_URL_INTERNAL}:${EUREKA_PORT}$@")
+  fi
 }
 
 add_dns_entry() {
@@ -85,47 +327,47 @@ add_dns_entry() {
 }
 
 setup_local_containers() {
-  if [ -n "${NODE_ID}" ] || [ -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ]; then
-    # http://blog.jonathanargentiero.com/docker-sed-cannot-rename-etcsedl8ysxl-device-or-resource-busy/
-    cp /etc/hosts ~/hosts.new
+  # http://blog.jonathanargentiero.com/docker-sed-cannot-rename-etcsedl8ysxl-device-or-resource-busy/
+  cp /etc/hosts ~/hosts.new
 
-    if [ -z "$NODE_ID" ]; then
-      SERVICES=$(call_eureka /services)
-    else
-      SERVICES=$(call_eureka /services/node/${NODE_ID})
-    fi
+  ## CONTAINERS=$(call_eureka /containers)
 
-    if [[ $EUREKA_DEBUG = *services* ]]; then
-      echo "${EUREKA_PROMPT}SERVICES= $SERVICES"
-    fi
+  if [ -z "$NODE_ID" ]; then
+    SERVICES=$(call_eureka /services)
+  else
+    SERVICES=$(call_eureka /services/node/${NODE_ID})
+  fi
 
-    # https://stedolan.github.io/jq/
-    while IFS="=" read name value; do
-      container="${value/%\ */}"
-      export "${name//-/_}=${container}"
-      add_dns_entry ${name} ${container}
+  if [[ $EUREKA_DEBUG = *services* ]]; then
+    echo "${EUREKA_PROMPT}SERVICES= $SERVICES"
+  fi
 
-      export "${name//-/_}0=\"$value\""
-      i=1
-      for container in $value; do
-        ## Stored as an Environment Variable
-        entry=${name}$((i++))
-        export "${entry//-/_}=${container}"
-        ## Added as a DNS entry
-        add_dns_entry ${entry} ${container}
-      done
-    done < <( echo "$SERVICES" | jq '.[] | tostring' | sed -e 's/\"{\\\"//g' -e 's/\\\"\:\[\\\"/_local=/g' -e 's/\\\",\\\"/\\\ /g' -e 's/\\\"]}\"//g')
+  # https://stedolan.github.io/jq/
+  while IFS="=" read name value; do
+    container="${value/%\ */}"
+    export "${name//-/_}=${container}"
+    add_dns_entry ${name} ${container}
 
-    # cp -f ~/hosts.new /etc/hosts # cp: can't create '/etc/hosts': File exists
-    echo "$(cat ~/hosts.new)" > /etc/hosts
+    export "${name//-/_}0=\"$value\""
+    i=1
+    for container in $value; do
+      ## Stored as an Environment Variable
+      entry=${name}$((i++))
+      export "${entry//-/_}=${container}"
+      ## Added as a DNS entry
+      add_dns_entry ${entry} ${container}
+    done
+  done < <( echo "$SERVICES" | jq '.[] | tostring' | sed -e 's/\"{\\\"//g' -e 's/\\\"\:\[\\\"/_local=/g' -e 's/\\\",\\\"/\\\ /g' -e 's/\\\"]}\"//g')
 
-    if [[ $EUREKA_DEBUG = *trace* ]]; then
-      echo "${EUREKA_PROMPT}$EUREKA_URL_INTERNAL:$EUREKA_PORT"
-      env | grep -v _local | sort
-      env | grep _local | sort
-      echo "${EUREKA_PROMPT}---------"
-      cat /etc/hosts
-    fi
+  # cp -f ~/hosts.new /etc/hosts # cp: can't create '/etc/hosts': File exists
+  echo "$(cat ~/hosts.new)" > /etc/hosts
+
+  if [[ $EUREKA_DEBUG = *trace* ]]; then
+    echo "${EUREKA_PROMPT}$EUREKA_URL_INTERNAL:$EUREKA_PORT"
+    env | grep -v _local | sort
+    env | grep _local | sort
+    echo "${EUREKA_PROMPT}---------"
+    cat /etc/hosts
   fi
 }
 
@@ -135,8 +377,8 @@ setup_local_containers() {
 # https://stackoverflow.com/questions/26177059/refresh-net-core-somaxcomm-or-any-sysctl-property-for-docker-containers/26197875#26197875
 # https://stackoverflow.com/questions/26050899/how-to-mount-host-volumes-into-docker-containers-in-dockerfile-during-build
 # docker run ... -v /proc:/writable-proc ...
-desable_availability() {
-  if [[ $EUREKA_DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}desable_availability asked" ; fi
+disable_availability() {
+  log "health" "DISABLING AVAILABILIY REQUESTED"
 
 #  write_availability_file 503 "Service Unavailable" 19
   if [ -n "${available_pid}" ]; then
@@ -147,15 +389,16 @@ desable_availability() {
   if [ -e /writable-proc/sys/net/ipv4/icmp_echo_ignore_all ]; then
     echo "1" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
   else
-    echo "${EUREKA_PROMPT}desable ping not allowed"
+    log 'ping' "disabling ping not allowed"
   fi
 
-  rm -f /availability.lock
-  if [[ $EUREKA_DEBUG = *health* ]]; then echo "${EUREKA_PROMPT}desable_availability: $(cat /availability.lock)"; fi
+  rm -f /availability.lock 2>/dev/null
+
+  log "health" "AVAILABILIY DISABLED"
 }
 
 enable_availability() {
-  if [[ $EUREKA_DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}enable_availability asked"; fi
+  log "health" "ENABLING AVAILABILIY REQUESTED"
 
   if [ "$AVAILABILITY_ALLOWED" != "false" ]; then
     ( while true; do echo "^C" | answer_availability ; done ) &
@@ -167,7 +410,8 @@ enable_availability() {
   fi
 
   echo "AVAILABLE" > /availability.lock
-  if [[ $EUREKA_DEBUG = *health* ]]; then echo "${EUREKA_PROMPT}enable_availability: $(cat /availability.lock)"; fi
+
+  log "health" "AVAILABILIY ENABLED"
 }
 
 safe_ping() {
@@ -177,29 +421,39 @@ safe_ping() {
   else
     if [[ $1 =~ _local[0-9]*$ ]]; then # The urls ending with _local[0-9]* are not known by Eureka...
       local url="${!1}" # https://stackoverflow.com/questions/14049057/bash-expand-variable-in-a-variable
-      if [[ $EUREKA_DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}$1 resolved as ${url}" ; fi
+      log 'ping' "${EUREKA_PROMPT}$1 resolved as ${url}"
     else
       local url="$1"
-      if [[ $EUREKA_DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}$1 applied to ${url}" ; fi
+      log 'ping' "${EUREKA_PROMPT}$1 applied to ${url}"
     fi
-    if [[ $EUREKA_DEBUG = *ping* ]]; then echo "${EUREKA_PROMPT}\$(call_eureka /ping/$url) = $(call_eureka /ping/$url)"; fi
-    test $(call_eureka /ping/$url) == "OK"
+    log 'ping' "${EUREKA_PROMPT}\$(call_eureka /ping/$url) = $(call_eureka /ping/$url)"
+    test $(call_eureka /ping/$url) == "OK" &>/dev/null
     return $?
   fi
 }
 
-kill_cmdpid () {
+kill_cmdpid() {
+  cmdpid=$1
+
+  stop_tasks
+  disable_availability &
   if [ "$KILL_WHEN_FAILED" = "true" ]; then
-    declare cmdpid=$1
     # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
     # Be nice, post SIGTERM first.
     # The 'exit 0' below will be executed if any preceeding command fails.
-    kill -s SIGTERM $cmdpid && kill -0 $cmdpid || exit 0
+    log 'info' "kill -s SIGTERM $cmdpid && kill -0 $cmdpid"
+    kill -s SIGTERM $cmdpid && kill -0 $cmdpid &>/dev/null
     sleep $delay
+    log 'info' "kill -s SIGKILL $cmdpid" &>/dev/null
     kill -s SIGKILL $cmdpid
-  else
-    ready=false
-    desable_availability &
+
+    log 'info' "pkill -P $cmdpid"
+    pkill -P $cmdpid &>/dev/null
+
+    if [[ $EUREKA_DEBUG != *stay* ]]; then
+      log 'info' "exit 0 REQUESTED"
+      exit 0
+    fi
   fi
 }
 
@@ -207,10 +461,8 @@ kill_cmdpid () {
 
 ## https://www.computerhope.com/unix/nc.htm
 function call_availability() {
-  if [[ $EUREKA_DEBUG = *netcat* ]]; then
-    echo "netcat -z -q 2 $1 ${EUREKA_AVAILABILITY_PORT}"
-  fi
-  netcat -z -q 2 $1 ${EUREKA_AVAILABILITY_PORT}
+  log 'netcat' "netcat -z -q 2 $1 ${EUREKA_AVAILABILITY_PORT}"
+  netcat -z -q 2 -w ${CHECK_DEPENDENCIES_INTERVAL} $1 ${EUREKA_AVAILABILITY_PORT} &> /dev/null
 }
 
 if ! hash netcat  2>/dev/null && [[ ! -f /usr/bin/netcat ]]; then ln -s $(which nc) /usr/bin/netcat; fi
@@ -219,190 +471,11 @@ if [[ $EUREKA_DEBUG = *netcat* ]]; then
 fi
 
 answer_availability() {
-  if [[ $EUREKA_DEBUG = *netcat* ]]; then
-    echo "netcat -lk -q 1 -p ${EUREKA_AVAILABILITY_PORT}"
-  fi
-  netcat -lk -q 1 -p "${EUREKA_AVAILABILITY_PORT}"
-}
-
-#### Initial Checks ####
-
-initial_check() {
-  declare cmdpid=$1
-
-  #### SETUP timeout
-  if [ -n "${CHECK_TIMEOUT}" ]; then
-    # http://www.bashcookbook.com/bashinfo/source/bash-4.0/examples/scripts/timeout3
-    declare -i timeout=CHECK_TIMEOUT
-    (
-        for ((t = timeout; t > 0; t -= interval)); do
-            echo "${EUREKA_PROMPT}$t Second(s) Remaining Before Timeout"
-            sleep $interval
-            # kill -0 pid   Exit code indicates if a signal may be sent to $pid process.
-            kill -0 $$ || exit 0
-        done
-
-        echo "${EUREKA_PROMPT}Timeout. Will EXIT"
-        # Be nice, post SIGTERM first.
-        # The 'exit 0' below will be executed if any preceeding command fails.
-        kill -s SIGTERM $cmdpid && kill -0 $cmdpid || exit 0
-        sleep $delay
-        kill -s SIGKILL $cmdpid
-    ) 2> /dev/null &
-
-    # $! expands to the PID of the last process executed in the background.
-    timeout_pid=$!
-    # https://stackoverflow.com/questions/5719030/bash-silently-kill-background-function-process
-    disown
-  fi
-
-  # https://docs.docker.com/compose/startup-order/
-  if [ -n "${DEPENDS_ON_SERVICES}" ]; then
-    >&2 echo "${EUREKA_PROMPT}Checking SERVICE DEPENDENCIES ${DEPENDS_ON_SERVICES}"
-    until [ "$(call_eureka /dependencies/${DEPENDS_ON_SERVICES})" == "OK" ]; do
-      >&2 echo "${EUREKA_PROMPT}Still WAITING for Service Dependencies ${DEPENDS_ON_SERVICES}"
-      sleep $interval
-    done
-  fi
-
-  if [ -n "${DEPENDS_ON}" ]; then
-    >&2 echo "${EUREKA_PROMPT}Checking DEPENDENCIES ${DEPENDS_ON}"
-    URLS=$(echo $DEPENDS_ON | tr "," "\n")
-    for URL in $URLS
-    do
-      if [[ $EUREKA_DEBUG = *availability* ]]; then
-        echo "${EUREKA_PROMPT}\$(call_availability ${URL}) = $(call_availability ${URL} 2>&1 ; echo $?)"
-      fi
-      until call_availability ${URL}; do
-        >&2 echo "${EUREKA_PROMPT}Still WAITING for Dependencies ${URL}"
-        if [[ $EUREKA_DEBUG = *availability* ]]; then
-          echo "${EUREKA_PROMPT}\$(call_availability ${URL}) = $(call_availability ${URL} 2>&1 ; echo $?)"
-        fi
-        if [[ "${URL}" == *_local* ]]; then
-          setup_local_containers
-        fi
-        sleep $interval
-      done
-    done
-  fi
-
-  # https://github.com/Eficode/wait-for
-  if [ -n "${WAIT_FOR}" ]; then
-    >&2 echo "${EUREKA_PROMPT}Checking URLS $WAIT_FOR"
-    URLS=$(echo $WAIT_FOR | tr "," "\n")
-    for URL in $URLS
-    do
-      if [[ $URL == *":"* ]]; then # url + port
-        HOST=$(printf "%s\n" "$URL"| cut -d : -f 1)
-        PORT=$(printf "%s\n" "$URL"| cut -d : -f 2)
-        # TODO Simplify
-        until netcat -vz -q 2 -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ; [ $result -eq 0 ] ; do
-          >&2 echo "${EUREKA_PROMPT}Still WAITING for URL $HOST:$PORT"
-          if [[ "${HOST}" == *_local* ]]; then
-            setup_local_containers
-          fi
-          sleep $interval
-        done
-      else # ping url
-        until safe_ping $URL; do
-          >&2 echo "Still WAITING for $URL PING"
-          if [[ "${URL}" == *_local* ]]; then
-            setup_local_containers
-          fi
-          sleep $interval
-        done
-      fi
-    done
-  fi
-
-  # Kill the CHECK_TIMEOUT loop if still alive
-  if [ -n "${CHECK_TIMEOUT}" ]; then
-    echo "${EUREKA_PROMPT}KILL KILL! $timeout_pid / $cmdpid"
-    kill $timeout_pid
-  fi
+  log 'netcat' "netcat -lk -q 1 -p ${EUREKA_AVAILABILITY_PORT}"
+  netcat -lk -q 1 -w ${CHECK_DEPENDENCIES_INTERVAL} -p "${EUREKA_AVAILABILITY_PORT}" &> /dev/null
 }
 
 #### Continuous Checks ####
-
-check_dependencies(){
-  declare cmdpid=$1
-
-  if [ -n "${DEPENDS_ON_SERVICES}" ]; then
-    dependencies_checked=$(call_eureka /dependencies/${DEPENDS_ON_SERVICES})
-    if [ "$dependencies_checked" != "OK" ]; then
-      >&2 echo "${EUREKA_PROMPT}Failed Check Services Dependencies ${DEPENDS_ON_SERVICES}"
-      kill_cmdpid $cmdpid
-    fi
-  fi
-
-  if [ -n "${DEPENDS_ON}" ]; then
-    URLS=$(echo $DEPENDS_ON | tr "," "\n")
-    for URL in $URLS
-    do
-      if ! call_availability ${URL}; then
-        >&2 echo "${EUREKA_PROMPT}Failed ${URL} Availability"
-        kill_cmdpid $cmdpid
-      fi
-    done
-  fi
-
-  # https://github.com/Eficode/wait-for
-  if [ -n "${WAIT_FOR}" ]; then
-    URLS=$(echo $WAIT_FOR | tr "," "\n")
-    for URL in $URLS
-    do
-      if [[ $URL == *":"* ]]; then # url + port
-        HOST=$(printf "%s\n" "$URL"| cut -d : -f 1)
-        PORT=$(printf "%s\n" "$URL"| cut -d : -f 2)
-        # TODO Simplify
-        netcat -z -q 2 "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ;
-        if [ $result -ne 0 ] ; then
-          >&2 echo "${EUREKA_PROMPT}Failed Check URL ${URL}"
-          if [ "$KILL_WHEN_FAILED" = "true" ]; then
-            kill_cmdpid $cmdpid
-          fi
-        fi
-      elif ! safe_ping $URL ; then # ping url
-        >&2 echo "${EUREKA_PROMPT}Failed ${URL} Ping"
-        kill_cmdpid $cmdpid
-      fi
-    done
-  fi
-}
-
-infinite_setup_check(){
-  if [ -n "${SETUP_LOCAL_CONTAINERS}" ] || [ -n "${EUREKA_URL}" ] || [ -n "${DEPENDS_ON}" ] || [ -n "${WAIT_FOR}" ]; then
-    while true
-    do
-      setup_local_containers
-      sleep $interval
-      if [ "$CONTINUOUS_CHECK" == "true" ] ; then
-        check_dependencies $1
-      fi
-    done
-  fi
-}
-
-infinite_monitor(){
-  if [[ $EUREKA_DEBUG = *monitor* ]]; then
-    >&2 echo "${EUREKA_PROMPT}infinite_monitor ASKED";
-    env
-  fi
-
-  if [ -n "${READY_WHEN}" ] || [ -n "${FAILED_WHEN}" ]; then
-    exec 1> >(
-    while read line
-    do
-      >&2 echo "${EUREKA_LINE_START}${line}"
-      monitor_output "$line" $1
-    done
-    )
-
-    if [[ $EUREKA_DEBUG = *monitor* ]]; then
-      >&2 echo "${EUREKA_PROMPT}infinite_monitor STARTED";
-    fi
-  fi
-}
 
 monitor_output() {
   declare cmdpid=$2
@@ -425,7 +498,7 @@ monitor_output() {
   fi
   if [ "$ready" = true ] && [[ $1 == *"${FAILED_WHEN}"* ]]; then
     >&2 echo "${EUREKA_PROMPT}FAILED!"
-    kill_cmdpid $cmdpid
+    ( kill_cmdpid $cmdpid ) &
   fi
 }
 
@@ -460,7 +533,7 @@ fi
 
 if [ -n "${READY_WHEN}" ]; then
   declare ready=false
-  desable_availability
+  disable_availability
 else
   declare ready=$READINESS
 fi

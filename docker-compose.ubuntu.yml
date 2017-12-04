@@ -1,0 +1,65 @@
+version: "3"
+
+### create_network,
+networks:
+  default:
+    external:
+      name: deetazilla
+
+services:
+
+  ### docker service create --network ${network} --constraint=node.role==manager --name eureka
+  ### --mount type=bind,source=/var/run/docker.sock,destination=/var/run/docker.sock -p 5000:5000 -e FLASK_DEBUG=0 logimethods/eureka
+  eureka:
+    image: eureka_exp
+#    image: logimethods/eureka${postfix}
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+    ports:
+      - "${EUREKA_PORT:-5000}:5000"
+      - 80:80
+    environment:
+      - FLASK_DEBUG=1
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+  ### ubuntu ###
+
+  ### docker run --rm -it --network ${network} --name ping0 --sysctl net.ipv4.icmp_echo_ignore_all=1 -v /proc:/writable-proc
+  ### -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true ping_ubuntu_exp ping www.docker.com
+  ping_client_ubuntu_exp:
+    image: ping_ubuntu_exp
+    deploy:
+      restart_policy:
+        condition: none
+    environment:
+      - DEPENDS_ON=ping_server_ubuntu_exp
+      - WAIT_FOR=eureka,www.logimethods.com:80,ping_server_ubuntu_exp
+      - SETUP_LOCAL_CONTAINERS=true
+      - KILL_WHEN_FAILED=${KILL_WHEN_FAILED:-true}
+      - CONTINUOUS_CHECK=true
+      - EUREKA_DEBUG=info_sleep_services_dns
+      - CHECK_DEPENDENCIES_INTERVAL=3
+    volumes:
+      - "/proc:/writable-proc"
+    command: ping eureka
+
+  ping_server_ubuntu_exp:
+    image: ping_ubuntu_exp
+    deploy:
+      restart_policy:
+        condition: none
+    environment:
+      - READY_WHEN=seq=10
+      - FAILED_WHEN=seq=40
+      - KILL_WHEN_FAILED=${KILL_WHEN_FAILED:-true}
+      - EUREKA_DEBUG=info_health
+      - EUREKA_LINE_START=>
+#      - CHECK_DEPENDENCIES_INTERVAL=20
+    volumes:
+      - "/proc:/writable-proc"
+    command: ping www.logimethods.com
+
+

@@ -4,7 +4,7 @@ version: "3"
 networks:
   default:
     external:
-      name: smartmeter
+      name: deetazilla
 
 services:
   ### ["create_service", "visualizer", 1],
@@ -39,7 +39,7 @@ services:
   ### ALPINE ###
 
   ### docker run --rm -it --network ${network} --name ping0 --sysctl net.ipv4.icmp_echo_ignore_all=1 -v /proc:/writable-proc
-  ### -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true ping_ubuntu_exp ping www.docker.com
+  ### -e READY_WHEN="seq=5" -e FAILED_WHEN="seq=20" -e KILL_WHEN_FAILED=true ping_ubuntu_exp ping www.logimethods.com
   ping_client_alpine_exp:
     image: ping_alpine_exp
     deploy:
@@ -47,12 +47,12 @@ services:
         condition: none
     environment:
       - DEPENDS_ON=ping_server_alpine_exp,ping_server_ubuntu_exp_local,ping_server_debian_exp_local1
-      - WAIT_FOR=www.docker.com:80,ping_server_alpine_exp,ping_server_ubuntu_exp_local,ping_server_debian_exp_local1
+      - WAIT_FOR=www.logimethods.com:80,ping_server_alpine_exp,ping_server_ubuntu_exp_local,ping_server_debian_exp_local1
       - SETUP_LOCAL_CONTAINERS=true
       - KILL_WHEN_FAILED=${KILL_WHEN_FAILED:-true}
       - CONTINUOUS_CHECK=true
-      - EUREKA_DEBUG=true
-#      - EUREKA_DEBUG=availability,trace,dns
+      - EUREKA_DEBUG=info
+#      - EUREKA_DEBUG=availability,trace,info,health,tasks
 #      - CHECK_DEPENDENCIES_INTERVAL=20
     volumes:
       - "/proc:/writable-proc"
@@ -67,11 +67,11 @@ services:
       - READY_WHEN=seq=5
       - FAILED_WHEN=seq=30
       - KILL_WHEN_FAILED=${KILL_WHEN_FAILED:-true}
-      - EUREKA_DEBUG=true
+      - EUREKA_DEBUG=info
 #      - CHECK_DEPENDENCIES_INTERVAL=20
     volumes:
       - "/proc:/writable-proc"
-    command: ping www.docker.com
+    command: ping www.logimethods.com
 
   ### UNBUNTU ###
 
@@ -82,11 +82,11 @@ services:
         condition: none
     environment:
       - DEPENDS_ON=ping_server_alpine_exp,ping_server_ubuntu_exp_local,ping_server_debian_exp_local1
-      - WAIT_FOR=www.docker.com:80,ping_server_alpine_exp,ping_server_ubuntu_exp_local,ping_server_debian_exp_local1
+      - WAIT_FOR=www.logimethods.com:80,ping_server_alpine_exp,ping_server_ubuntu_exp_local,ping_server_debian_exp_local1
       - SETUP_LOCAL_CONTAINERS=true
       - KILL_WHEN_FAILED=${KILL_WHEN_FAILED:-true}
       - CONTINUOUS_CHECK=true
-      - EUREKA_DEBUG=true
+      - EUREKA_DEBUG=info
 #      - CHECK_DEPENDENCIES_INTERVAL=20
     volumes:
       - "/proc:/writable-proc"
@@ -101,11 +101,11 @@ services:
       - READY_WHEN=seq=5
       - FAILED_WHEN=seq=30
       - KILL_WHEN_FAILED=${KILL_WHEN_FAILED:-true}
-      - EUREKA_DEBUG=true
+      - EUREKA_DEBUG=info
 #      - CHECK_DEPENDENCIES_INTERVAL=20
     volumes:
       - "/proc:/writable-proc"
-    command: ping www.docker.com
+    command: ping www.logimethods.com
 
   ### DEBIAN ###
 
@@ -116,11 +116,11 @@ services:
         condition: none
     environment:
       - DEPENDS_ON=ping_server_alpine_exp,ping_server_ubuntu_exp_local,ping_server_debian_exp_local1
-      - WAIT_FOR=www.docker.com:80,ping_server_alpine_exp,ping_server_ubuntu_exp_local,ping_server_debian_exp_local1
+      - WAIT_FOR=www.logimethods.com:80,ping_server_alpine_exp,ping_server_ubuntu_exp_local,ping_server_debian_exp_local1
       - SETUP_LOCAL_CONTAINERS=true
       - KILL_WHEN_FAILED=${KILL_WHEN_FAILED:-true}
       - CONTINUOUS_CHECK=true
-      - EUREKA_DEBUG=true
+      - EUREKA_DEBUG=info
 #      - CHECK_DEPENDENCIES_INTERVAL=20
     volumes:
       - "/proc:/writable-proc"
@@ -135,8 +135,8 @@ services:
       - READY_WHEN=seq=5
       - FAILED_WHEN=seq=30
       - KILL_WHEN_FAILED=${KILL_WHEN_FAILED:-true}
-      - EUREKA_DEBUG=true
+      - EUREKA_DEBUG=info
 #      - CHECK_DEPENDENCIES_INTERVAL=20
     volumes:
       - "/proc:/writable-proc"
-    command: ping www.docker.com
+    command: ping www.logimethods.com
