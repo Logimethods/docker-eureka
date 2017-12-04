@@ -463,7 +463,7 @@ ps
 ## https://www.computerhope.com/unix/nc.htm
 function call_availability() {
   log 'netcat' "netcat -z -q 2 $1 ${EUREKA_AVAILABILITY_PORT}"
-  netcat -z -q 2 $1 ${EUREKA_AVAILABILITY_PORT}
+  netcat -z -q 2 -w ${CHECK_DEPENDENCIES_INTERVAL} $1 ${EUREKA_AVAILABILITY_PORT} &> /dev/null
 }
 
 if ! hash netcat  2>/dev/null && [[ ! -f /usr/bin/netcat ]]; then ln -s $(which nc) /usr/bin/netcat; fi
@@ -473,7 +473,7 @@ fi
 
 answer_availability() {
   log 'netcat' "netcat -lk -q 1 -p ${EUREKA_AVAILABILITY_PORT}"
-  netcat -lk -q 1 -p "${EUREKA_AVAILABILITY_PORT}"
+  netcat -lk -q 1 -w ${CHECK_DEPENDENCIES_INTERVAL} -p "${EUREKA_AVAILABILITY_PORT}" &> /dev/null
 }
 
 #### Continuous Checks ####
