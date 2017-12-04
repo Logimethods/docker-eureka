@@ -72,7 +72,6 @@ remove_tasks() {
 
 run_tasks() {
   __TASKS+=($@)
-echo "!!! ${__TASKS[*]}"
   while $__RUNNING && [[ ${#__TASKS[@]} -ne 0 ]]; do
     log "info" "[${__TASKS[*]}]"
     __NEW_TASKS=()
@@ -465,82 +464,7 @@ answer_availability() {
   netcat -lk -q 1 -p "${EUREKA_AVAILABILITY_PORT}"
 }
 
-#### Initial Checks ####
-
-___initial_check() {
-  declare cmdpid=$1
-
-  #### SETUP timeout
-  if [ -n "${CHECK_TIMEOUT}" ]; then
-    add_tasks "WAIT_TIMEOUT"
-    __WAIT_TIMEOUT=`echo $(date +%s) + $CHECK_TIMEOUT | bc`
-  fi
-
-  # https://docs.docker.com/compose/startup-order/
-  if [ -n "${DEPENDS_ON_SERVICES}" ]; then
-    >&2 echo "${EUREKA_PROMPT}Checking SERVICE DEPENDENCIES ${DEPENDS_ON_SERVICES}"
-    until [ "$(call_eureka /dependencies/${DEPENDS_ON_SERVICES})" == "OK" ]; do
-      >&2 echo "${EUREKA_PROMPT}Still WAITING for Service Dependencies ${DEPENDS_ON_SERVICES}"
-      sleep $interval
-    done
-  fi
-
-  if [ -n "${DEPENDS_ON}" ]; then
-    >&2 echo "${EUREKA_PROMPT}Checking DEPENDENCIES ${DEPENDS_ON}"
-    URLS=$(echo $DEPENDS_ON | tr "," "\n")
-    for URL in $URLS
-    do
-      if [[ $EUREKA_DEBUG = *availability* ]]; then
-        echo "${EUREKA_PROMPT}\$(call_availability ${URL}) = $(call_availability ${URL} 2>&1 ; echo $?)"
-      fi
-      until call_availability ${URL}; do
-        >&2 echo "${EUREKA_PROMPT}Still WAITING for Dependencies ${URL}"
-        if [[ $EUREKA_DEBUG = *availability* ]]; then
-          echo "${EUREKA_PROMPT}\$(call_availability ${URL}) = $(call_availability ${URL} 2>&1 ; echo $?)"
-        fi
-        if [[ "${URL}" == *_local* ]]; then
-          setup_local_containers
-        fi
-        sleep $interval
-      done
-    done
-  fi
-
-  # https://github.com/Eficode/wait-for
-  if [ -n "${WAIT_FOR}" ]; then
-    >&2 echo "${EUREKA_PROMPT}Checking URLS $WAIT_FOR"
-    URLS=$(echo $WAIT_FOR | tr "," "\n")
-    for URL in $URLS
-    do
-      if [[ $URL == *":"* ]]; then # url + port
-        HOST=$(printf "%s\n" "$URL"| cut -d : -f 1)
-        PORT=$(printf "%s\n" "$URL"| cut -d : -f 2)
-        # TODO Simplify
-        until netcat -vz -q 2 -z "$HOST" "$PORT" > /dev/null 2>&1 ; result=$? ; [ $result -eq 0 ] ; do
-          >&2 echo "${EUREKA_PROMPT}Still WAITING for URL $HOST:$PORT"
-          if [[ "${HOST}" == *_local* ]]; then
-            setup_local_containers
-          fi
-          sleep $interval
-        done
-      else # ping url
-        until safe_ping $URL; do
-          >&2 echo "Still WAITING for $URL PING"
-          if [[ "${URL}" == *_local* ]]; then
-            setup_local_containers
-          fi
-          sleep $interval
-        done
-      fi
-    done
-  fi
-
-  # Kill the CHECK_TIMEOUT loop if still alive
-  if [ -n "${CHECK_TIMEOUT}" ]; then
-    echo "${EUREKA_PROMPT}KILL KILL! $timeout_pid / $cmdpid"
-    kill $timeout_pid
-  fi
-}
+: '
 
 #### Continuous Checks ####
 
@@ -602,7 +526,7 @@ infinite_setup_check(){
     done
   fi
 }
-: '
+
 infinite_monitor(){
   if [[ $EUREKA_DEBUG = *monitor* ]]; then
     >&2 echo "${EUREKA_PROMPT}infinite_monitor ASKED";

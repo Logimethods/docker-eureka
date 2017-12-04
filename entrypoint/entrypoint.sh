@@ -53,12 +53,7 @@ set -a
 ( cmdpid=$BASHPID ;
   include /entrypoint_insert.sh ;
   run_tasks 'INIT'
-#  desable_availability ;
-#  setup_local_containers ;
-#  initial_check $cmdpid ;
   (run_tasks "CONTINUOUS_CHECK_INIT#$cmdpid") &
-#  (infinite_setup_check $cmdpid) &
-#  infinite_monitor $cmdpid ;
   include /entrypoint_prepare.sh ;
   if [ -z "${READY_WHEN}" ]; then
     enable_availability;
@@ -69,7 +64,6 @@ set -a
     ## https://stackoverflow.com/questions/4331309/shellscript-to-monitor-a-log-file-if-keyword-triggers-then-execute-a-command
     exec "$@" | \
       while read line ; do
-    #    >&2 echo "${EUREKA_LINE_START}${line}"
         echo "${EUREKA_LINE_START}${line}"
         monitor_output "$line" $cmdpid
       done
