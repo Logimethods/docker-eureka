@@ -36,6 +36,7 @@
 ## EUREKA_URL
 ## CHECK_TIMEOUT
 ## CHECK_DEPENDENCIES_INTERVAL
+## AVAILABILITY_LOCK_PATH
 
 # https://stackoverflow.com/questions/39162846/what-does-set-e-and-set-a-do-in-bash-what-are-other-options-that-i-can-use-wit
 if [ -n "${EUREKA_DEBUG}" ]; then

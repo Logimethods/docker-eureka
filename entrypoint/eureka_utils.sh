@@ -392,7 +392,7 @@ disable_availability() {
     log 'ping' "disabling ping not allowed"
   fi
 
-  rm -f /availability.lock 2>/dev/null
+  rm -f ${AVAILABILITY_LOCK_PATH}/availability.lock 2>/dev/null
 
   log "health" "AVAILABILIY DISABLED"
 }
@@ -409,7 +409,7 @@ enable_availability() {
     echo "0" >  /writable-proc/sys/net/ipv4/icmp_echo_ignore_all
   fi
 
-  echo "AVAILABLE" > /availability.lock
+  echo "AVAILABLE" > ${AVAILABILITY_LOCK_PATH}/availability.lock
 
   log "health" "AVAILABILIY ENABLED"
 }
