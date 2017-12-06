@@ -502,6 +502,10 @@ monitor_output() {
   fi
 }
 
+### DEFAULT LOG LEVEL
+
+: ${EUREKA_DEBUG:=info}
+
 ### PROVIDE LOCAL URLS ###
 # An alternative to https://github.com/docker/swarm/issues/1106
 
