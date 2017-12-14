@@ -91,8 +91,6 @@ run_tasks() {
 }
 
 INIT() {
-  include ./entrypoint_insert.sh ;
-
   if [ -n "${WAIT_FOR}" ] || [ -n "${DEPENDS_ON}" ] || [ -n "${DEPENDS_ON_SERVICES}" ]|| [ -n "${READY_WHEN}" ]; then
     add_tasks 'disable_availability'
   fi
