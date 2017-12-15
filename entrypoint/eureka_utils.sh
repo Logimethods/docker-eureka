@@ -79,7 +79,7 @@ run_tasks() {
     for __TASK in "${__TASKS[@]}"; do
       if $__RUNNING ; then
         command=$(echo $__TASK | tr '#' ' ')
-        log "tasks "\$ $command"
+        log "tasks" "\$ $command"
         eval $command
       fi
     done
