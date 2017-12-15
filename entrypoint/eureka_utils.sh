@@ -73,13 +73,13 @@ remove_tasks() {
 run_tasks() {
   __TASKS+=($@)
   while $__RUNNING && [[ ${#__TASKS[@]} -ne 0 ]]; do
-    log "info" "[${__TASKS[*]}]"
+    log "tasks" "[${__TASKS[*]}]"
     __NEW_TASKS=()
 
     for __TASK in "${__TASKS[@]}"; do
       if $__RUNNING ; then
         command=$(echo $__TASK | tr '#' ' ')
-        log info "\$ $command"
+        log "tasks "\$ $command"
         eval $command
       fi
     done
