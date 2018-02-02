@@ -4,7 +4,7 @@ FROM entrypoint_exp as entrypoint
 
 ### MAIN FROM ###
 
-FROM ubuntu:17.04
+FROM ubuntu:18.04
 # https://stedolan.github.io/jq/
 RUN apt-get update && apt-get install -y \
   jq bash netcat-openbsd curl iputils-ping dnsutils
