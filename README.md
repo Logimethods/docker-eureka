@@ -92,6 +92,7 @@ docker run --rm -it --network ${network} --name ping0 --mount type=bind,source=/
 ### `docker stack`
 
 ```
+docker network create --attachable --driver overlay eureka
 docker stack deploy -c docker-compose.yml test
 ```
 
