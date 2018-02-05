@@ -63,7 +63,7 @@ set -a
   if [ -n "${READY_WHEN}" ] || [ -n "${FAILED_WHEN}" ]; then
     log 'info' "Ready/Failed Monitoring Started"
     ## https://stackoverflow.com/questions/4331309/shellscript-to-monitor-a-log-file-if-keyword-triggers-then-execute-a-command
-    exec "$@" | \
+    exec "$@" 2>&1 | \
       while read line ; do
         echo "${EUREKA_LINE_START}${line}"
         monitor_output "$line" $cmdpid
