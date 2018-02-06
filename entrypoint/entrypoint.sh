@@ -70,7 +70,7 @@ set -a
       done
   else
     log 'info' "Started without Monitoring"
-    exec "$@"
+    exec "$@" 2>&1
   fi
 )
 
